@@ -5,7 +5,7 @@ extern void printf(char *, ...);
 extern int threadid();
 extern void shutdown();
 
-#if defined(LOG_LEVEL_ERROR)
+#if defined(LOG_LEVEL_ERROR) //如果定义了LOG_LEVEL_ERROR就定义USE_LOG_ERROR，后续到46行和这个一样
 
 #define USE_LOG_ERROR
 
@@ -44,15 +44,18 @@ extern void shutdown();
 #define USE_LOG_TRACE
 
 #endif // LOG_LEVEL_TRACE
-
-enum LOG_COLOR {
+//定义一个枚举，用来表示输出信息的颜色
+enum LOG_COLOR {	
 	RED = 31,
 	GREEN = 32,
 	BLUE = 34,
 	GRAY = 90,
 	YELLOW = 93,
 };
-
+//printf("\033[31mThis text is red \033[0mThis text has default color\n");
+//如果定义了USE_LOG_ERROR，errorf先调用threadid获取tid，然后使用了printf带颜色的打印，
+//\x1b表示0x27，\x1b[%dm和\x1b[0m都是printf带颜色打印的参数，将ERROR和tid打印出来，
+//然后再打印fmt和可变参数，##_VA_ARGS__表示可变参数列表
 #if defined(USE_LOG_ERROR)
 #define errorf(fmt, ...)                                                       \
 	do {                                                                   \
@@ -107,7 +110,7 @@ enum LOG_COLOR {
 #else
 #define tracef(fmt, ...)
 #endif // USE_LOG_TRACE
-
+//__FILE__为文件名，__LINE__为当前行号
 #define panic(fmt, ...)                                                        \
 	do {                                                                   \
 		int tid = threadid();                                          \

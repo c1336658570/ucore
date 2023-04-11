@@ -3,32 +3,52 @@
 
 #include "types.h"
 
+/*
+riscv内联汇编格式
+asm [volatile] (
+	"汇编指令"
+	:输出操作数列表（可选）
+	:输入操作数列表（可选）
+	:可能影响的寄存器或者存储器（可选）
+)
+例：
+int foo(int a, int b) {
+	int c;
+	asm volatile(
+		"add %0, %1, %2"	//
+		: "=r"(c)			//输出操作数列表
+		: "r"(a), "r"(b)	//输入操作数列表
+	);
+	return c;
+}
+*/
+
 // which hart (core) is this?
-static inline uint64 r_mhartid()
+static inline uint64 r_mhartid()	//寄存器mhartid包含硬件线程ID整数值。硬件线程 ID 在一个多处理器系统中并不要求一定是连续的，但是至少应该有一个硬件线程，它的 ID 是 0。
 {
 	uint64 x;
-	asm volatile("csrr %0, mhartid" : "=r"(x));
-	return x;
+	asm volatile("csrr %0, mhartid" : "=r"(x)); //读取mhartid寄存器并放入到x中
+	return x;	//将x返回
 }
 
 // Machine Status Register, mstatus
+//较低权限的 sstatus 和 ustatus 寄存器几乎同理	xPP 之前的特权级别	xPIE 之前的中断使能		xIE 中断使能
+#define MSTATUS_MPP_MASK (3L << 11) // previous mode.保存上一次运行时的特权级别
+#define MSTATUS_MPP_M (3L << 11)	//11、12位，设置mpp位
+#define MSTATUS_MPP_S (1L << 11)	
+#define MSTATUS_MPP_U (0L << 11)	
+#define MSTATUS_MIE (1L << 3) // machine-mode interrupt enable.MIE位，开中断
 
-#define MSTATUS_MPP_MASK (3L << 11) // previous mode.
-#define MSTATUS_MPP_M (3L << 11)
-#define MSTATUS_MPP_S (1L << 11)
-#define MSTATUS_MPP_U (0L << 11)
-#define MSTATUS_MIE (1L << 3) // machine-mode interrupt enable.
-
-static inline uint64 r_mstatus()
+static inline uint64 r_mstatus()	//机器状态寄存器mstatus。mstatus 在 H 和 S 特权级 ISA 受限的视图，分别出现在 hstatus 和 sstatus 寄存器中。
 {
 	uint64 x;
-	asm volatile("csrr %0, mstatus" : "=r"(x));
+	asm volatile("csrr %0, mstatus" : "=r"(x));	//读mstatus到uint64 x
 	return x;
 }
 
 static inline void w_mstatus(uint64 x)
 {
-	asm volatile("csrw mstatus, %0" : : "r"(x));
+	asm volatile("csrw mstatus, %0" : : "r"(x));//写x到mstatus，其中输出参数列表被忽略，只有输入参数列表
 }
 
 // machine exception program counter, holds the
@@ -36,11 +56,11 @@ static inline void w_mstatus(uint64 x)
 // exception will go.
 static inline void w_mepc(uint64 x)
 {
-	asm volatile("csrw mepc, %0" : : "r"(x));
+	asm volatile("csrw mepc, %0" : : "r"(x));	//写x到mepc
 }
 
 // Supervisor Status Register, sstatus
-
+//xPP 之前的特权级别	xPIE 之前的中断使能		xIE 中断使能
 #define SSTATUS_SPP (1L << 8) // Previous mode, 1=Supervisor, 0=User
 #define SSTATUS_SPIE (1L << 5) // Supervisor Previous Interrupt Enable
 #define SSTATUS_UPIE (1L << 4) // User Previous Interrupt Enable
@@ -50,58 +70,59 @@ static inline void w_mepc(uint64 x)
 static inline uint64 r_sstatus()
 {
 	uint64 x;
-	asm volatile("csrr %0, sstatus" : "=r"(x));
+	asm volatile("csrr %0, sstatus" : "=r"(x));	//读sstatus到x
 	return x;
 }
 
 static inline void w_sstatus(uint64 x)
 {
-	asm volatile("csrw sstatus, %0" : : "r"(x));
+	asm volatile("csrw sstatus, %0" : : "r"(x));	//写x到sstatus
 }
 
 // Supervisor Interrupt Pending
 static inline uint64 r_sip()
 {
 	uint64 x;
-	asm volatile("csrr %0, sip" : "=r"(x));
+	asm volatile("csrr %0, sip" : "=r"(x));		//读sip到x
 	return x;
 }
 
 static inline void w_sip(uint64 x)
 {
-	asm volatile("csrw sip, %0" : : "r"(x));
+	asm volatile("csrw sip, %0" : : "r"(x));	//写x到sip
 }
 
-// Supervisor Interrupt Enable
+//mie 寄存器包含了相应的中断使能位，sie 和 uie 功能相似。
+// Supervisor Interrupt Enable	xTIE 时钟中断使能位	xSIE 软件中断使能位	xEIE 外部中断使能位
 #define SIE_SEIE (1L << 9) // external
 #define SIE_STIE (1L << 5) // timer
 #define SIE_SSIE (1L << 1) // software
 static inline uint64 r_sie()
 {
 	uint64 x;
-	asm volatile("csrr %0, sie" : "=r"(x));
+	asm volatile("csrr %0, sie" : "=r"(x));		//读sie到x
 	return x;
 }
 
 static inline void w_sie(uint64 x)
 {
-	asm volatile("csrw sie, %0" : : "r"(x));
+	asm volatile("csrw sie, %0" : : "r"(x));	//写x到sie
 }
 
-// Machine-mode Interrupt Enable
+// Machine-mode Interrupt Enable	xTIE 时钟中断使能位	xSIE 软件中断使能位	xEIE 外部中断使能位
 #define MIE_MEIE (1L << 11) // external
 #define MIE_MTIE (1L << 7) // timer
 #define MIE_MSIE (1L << 3) // software
 static inline uint64 r_mie()
 {
 	uint64 x;
-	asm volatile("csrr %0, mie" : "=r"(x));
+	asm volatile("csrr %0, mie" : "=r"(x));		//读mie到x
 	return x;
 }
 
 static inline void w_mie(uint64 x)
 {
-	asm volatile("csrw mie, %0" : : "r"(x));
+	asm volatile("csrw mie, %0" : : "r"(x));	//写x到mie
 }
 
 // machine exception program counter, holds the
@@ -109,13 +130,13 @@ static inline void w_mie(uint64 x)
 // exception will go.
 static inline void w_sepc(uint64 x)
 {
-	asm volatile("csrw sepc, %0" : : "r"(x));
+	asm volatile("csrw sepc, %0" : : "r"(x));	//写x到sepc
 }
 
 static inline uint64 r_sepc()
 {
 	uint64 x;
-	asm volatile("csrr %0, sepc" : "=r"(x));
+	asm volatile("csrr %0, sepc" : "=r"(x));	//读sepc到x
 	return x;
 }
 
@@ -123,46 +144,46 @@ static inline uint64 r_sepc()
 static inline uint64 r_medeleg()
 {
 	uint64 x;
-	asm volatile("csrr %0, medeleg" : "=r"(x));
+	asm volatile("csrr %0, medeleg" : "=r"(x));	//读medeleg到x
 	return x;
 }
 
 static inline void w_medeleg(uint64 x)
 {
-	asm volatile("csrw medeleg, %0" : : "r"(x));
+	asm volatile("csrw medeleg, %0" : : "r"(x));//写x到medeleg
 }
 
 // Machine Interrupt Delegation
 static inline uint64 r_mideleg()
 {
 	uint64 x;
-	asm volatile("csrr %0, mideleg" : "=r"(x));
+	asm volatile("csrr %0, mideleg" : "=r"(x));	//读mideleg到x
 	return x;
 }
 
 static inline void w_mideleg(uint64 x)
 {
-	asm volatile("csrw mideleg, %0" : : "r"(x));
+	asm volatile("csrw mideleg, %0" : : "r"(x));//写x到mideleg
 }
 
 // Supervisor Trap-Vector Base Address
 // low two bits are mode.
 static inline void w_stvec(uint64 x)
 {
-	asm volatile("csrw stvec, %0" : : "r"(x));
+	asm volatile("csrw stvec, %0" : : "r"(x));	//写
 }
 
 static inline uint64 r_stvec()
 {
 	uint64 x;
-	asm volatile("csrr %0, stvec" : "=r"(x));
+	asm volatile("csrr %0, stvec" : "=r"(x));	//读
 	return x;
 }
 
 // Machine-mode interrupt vector
 static inline void w_mtvec(uint64 x)
 {
-	asm volatile("csrw mtvec, %0" : : "r"(x));
+	asm volatile("csrw mtvec, %0" : : "r"(x));	//写
 }
 
 // use riscv's sv39 page table scheme.
