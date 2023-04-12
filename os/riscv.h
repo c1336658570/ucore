@@ -67,7 +67,7 @@ static inline void w_mepc(uint64 x)
 #define SSTATUS_SIE (1L << 1) // Supervisor Interrupt Enable
 #define SSTATUS_UIE (1L << 0) // User Interrupt Enable
 
-static inline uint64 r_sstatus()
+static inline uint64 r_sstatus() 	//sstatus：记录一些比较重要的状态，比如是否允许中断异常嵌套。
 {
 	uint64 x;
 	asm volatile("csrr %0, sstatus" : "=r"(x));	//读sstatus到x
@@ -128,7 +128,7 @@ static inline void w_mie(uint64 x)
 // machine exception program counter, holds the
 // instruction address to which a return from
 // exception will go.
-static inline void w_sepc(uint64 x)
+static inline void w_sepc(uint64 x) //sepc 处理完毕中断异常之后需要返回的PC值。
 {
 	asm volatile("csrw sepc, %0" : : "r"(x));	//写x到sepc
 }
@@ -168,7 +168,7 @@ static inline void w_mideleg(uint64 x)
 
 // Supervisor Trap-Vector Base Address
 // low two bits are mode.
-static inline void w_stvec(uint64 x)
+static inline void w_stvec(uint64 x)	//stvec：处理异常的函数的起始地址。
 {
 	asm volatile("csrw stvec, %0" : : "r"(x));	//写
 }
@@ -217,7 +217,7 @@ static inline void w_mscratch(uint64 x)
 }
 
 // Supervisor Trap Cause
-static inline uint64 r_scause()
+static inline uint64 r_scause() //scause: 它用于记录异常和中断的原因。它的最高位为1是中断，否则是异常。其低位决定具体的种类。
 {
 	uint64 x;
 	asm volatile("csrr %0, scause" : "=r"(x));
@@ -225,7 +225,7 @@ static inline uint64 r_scause()
 }
 
 // Supervisor Trap Value
-static inline uint64 r_stval()
+static inline uint64 r_stval() //stval: 产生异常的指令的地址
 {
 	uint64 x;
 	asm volatile("csrr %0, stval" : "=r"(x));
@@ -256,7 +256,7 @@ static inline uint64 r_time()
 // enable device interrupts
 static inline void intr_on()
 {
-	w_sstatus(r_sstatus() | SSTATUS_SIE);
+	w_sstatus(r_sstatus() | SSTATUS_SIE); 
 }
 
 // disable device interrupts
