@@ -13,7 +13,7 @@
 trampoline:
 .align 4
 .globl uservec
-uservec:
+uservec:        #os保存了U态执行流的各个寄存器的值。
 	#
         # trap.c sets stvec to point here, so
         # traps from user space start here,
@@ -26,9 +26,11 @@ uservec:
 
 	# swap a0 and sscratch
         # so that a0 is TRAPFRAME
-        csrrw a0, sscratch, a0
-
+        csrrw a0, sscratch, a0          #交换a0和sscrath
+        #sscratch这个CSR寄存器的作用就是一个cache，它只负责存某一个值，这里它保存的就是TRAPFRAME结构体的位置。
         # save the user registers in TRAPFRAME
+
+        #保存ra-t6（a0除外）
         sd ra, 40(a0)
         sd sp, 48(a0)
         sd gp, 56(a0)
@@ -62,18 +64,18 @@ uservec:
 
 	# save the user a0 in p->trapframe->a0
         csrr t0, sscratch
-        sd t0, 112(a0)
+        sd t0, 112(a0)  #保存a0
 
         csrr t1, sepc
-        sd t1, 24(a0)
+        sd t1, 24(a0)   #保存用户程序计数器
 
-        ld sp, 8(a0)
-        ld tp, 32(a0)
-        ld t1, 0(a0)
+        ld sp, 8(a0)    #将进程内核栈顶部加载到sp
+        ld tp, 32(a0)   #将内核tp加载到tp
+        ld t1, 0(a0)    #将内核页表加载到t1
         # csrw satp, t1
         # sfence.vma zero, zero
-        ld t0, 16(a0)
-        jr t0
+        ld t0, 16(a0)   #kernel_trap加载到t0就是函数usertrap的地址
+        jr t0 #jr t0,就跳转到了我们早先设定在 trapframe->kernel_trap 中的地址，也就是 trap.c 之中的 usertrap 函数。这个函数在main的初始化之中已经调用了。
 
 .globl userret
 userret:
