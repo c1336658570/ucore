@@ -18,12 +18,12 @@ void trap_init(void)
 //
 void usertrap(struct trapframe *trapframe)
 {
-	if ((r_sstatus() & SSTATUS_SPP) != 0)
+	if ((r_sstatus() & SSTATUS_SPP) != 0)	//判断之前是否是用户模式，如果不是就panic
 		panic("usertrap: not from user mode");
 
-	uint64 cause = r_scause();
-	if (cause == UserEnvCall) {
-		trapframe->epc += 4;
+	uint64 cause = r_scause();	//读异常和中断，并判断其种类。最高位为1是中断，否则是异常。其低位决定具体的种类
+	if (cause == UserEnvCall) { //用户环境系统调用
+		trapframe->epc += 4;	//让用户程序在系统调用返回后继续执行下一条指令。这样可以避免重复执行ecall指令，造成无限循环。
 		syscall();
 		return usertrapret(trapframe, (uint64)boot_stack_top);
 	}
@@ -64,7 +64,7 @@ void usertrapret(struct trapframe *trapframe, uint64 kstack)	//从S态返回U态
 	trapframe->kernel_trap = (uint64)usertrap;
 	trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
 
-	w_sepc(trapframe->epc);	// 设置了sepc寄存器的值。
+	w_sepc(trapframe->epc);	// 设置了sepc寄存器的值,回用户空间。
 	// set up the registers that trampoline.S's sret will use
 	// to get to user space.
 

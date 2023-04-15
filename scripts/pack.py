@@ -1,3 +1,4 @@
+#生成link_app.S
 import os
 
 TARGET_DIR = "./user/target/bin/"

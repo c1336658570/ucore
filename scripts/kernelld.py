@@ -1,3 +1,4 @@
+#生成kernel_app.ld
 import os
 
 TARGET_DIR = "./user/target/bin/"
