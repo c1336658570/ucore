@@ -23,6 +23,11 @@ int inline sbi_call(uint64 which, uint64 arg0, uint64 arg1, uint64 arg2)
 	return a0;
 }
 
+/* which 表示请求 RustSBI 的服务的类型， 
+arg0 ~ arg2 表示传递给 RustSBI 的 3 个参数，
+而 RustSBI 在将请求处理完毕后，
+会给内核一个返回值，这个返回值也会被 sbi_call 函数返回。*/
+
 void console_putchar(int c)
 {
 	sbi_call(SBI_CONSOLE_PUTCHAR, c, 0, 0);

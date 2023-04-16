@@ -8,6 +8,16 @@
 	# kernel.ld causes this to be aligned
         # to a page boundary.
         #
+
+# .section .text 定义代码段。
+#trampoline 和 uservec 是两个全局符号，外部代码可以引用它们。
+#当用户空间的程序发生中断时，处理器会切换到内核模式，并跳转到 uservec 处开始执行。
+#在这里，它会保存用户空间的寄存器到 TRAPFRAME 结构中。TRAPFRAME 是一个内核数据结构，
+#用于保存用户空间的寄存器值，以便在内核处理完中断后恢复用户空间的状态。
+#保存完用户空间的寄存器值后，程序跳转到 userret 符号处。
+#这部分代码负责从内核空间切换回用户空间。
+#首先，它会切换到用户空间的页表。然后，它会从 TRAPFRAME 结构中恢复用户空间的寄存器值。
+#最后，通过执行 sret 指令，它会将处理器从内核模式切换回用户模式，并跳转回用户空间的程序。
     .section .text
 .globl trampoline
 trampoline:
@@ -91,8 +101,12 @@ userret:
 
         # put the saved user a0 in sscratch, so we
         # can swap it with our a0 (TRAPFRAME) in the last step.
+
+        #a0 是一个指向 trapframe 结构体的指针
         ld t0, 112(a0)
         csrw sscratch, t0
+        #将保存的用户 a0 放入 sscratch，所以我们
+        #可以在最后一步将它与我们的 a0 (TRAPFRAME) 交换
 
         # restore all but a0 from TRAPFRAME
         ld ra, 40(a0)

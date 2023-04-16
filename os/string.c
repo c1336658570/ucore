@@ -33,7 +33,8 @@ void *memmove(void *dst, const void *src, uint n)
 
 	s = src;
 	d = dst;
-	if (s < d && s + n > d) {
+	if (s < d && s + n > d) {//存在内存重叠的情况，这时需要从后往前拷贝数据，
+													 //同时防止覆盖尚未拷贝的数据。
 		s += n;
 		d += n;
 		while (n-- > 0)

@@ -2,7 +2,8 @@
 #define TRAP_H
 
 #include "types.h"
-
+//在uservec之中，os保存了U态执行流的各个寄存器的值
+//这些值的位置trap.h中的trapframe结构体规定好了
 struct trapframe {
 	/*   0 */ uint64 kernel_satp; // kernel page table
 	/*   8 */ uint64 kernel_sp; // top of process's kernel stack
