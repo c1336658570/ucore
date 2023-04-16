@@ -73,7 +73,7 @@ uservec:        #os保存了U态执行流的各个寄存器的值。
         sd t6, 280(a0)
 
 	# save the user a0 in p->trapframe->a0
-        csrr t0, sscratch
+        csrr t0, sscratch       #在上面将sscratch和a0交换了，现在sscratch保存的是a0，a0保存的是sscratch，即trapframe结构体的地址
         sd t0, 112(a0)  #保存a0
 
         csrr t1, sepc
@@ -86,6 +86,7 @@ uservec:        #os保存了U态执行流的各个寄存器的值。
         # sfence.vma zero, zero
         ld t0, 16(a0)   #kernel_trap加载到t0就是函数usertrap的地址
         jr t0 #jr t0,就跳转到了我们早先设定在 trapframe->kernel_trap 中的地址，也就是 trap.c 之中的 usertrap 函数。这个函数在main的初始化之中已经调用了。
+        #a0是一个参数，将trapframe的地址传给了usertrap
 
 .globl userret
 userret:
@@ -103,8 +104,8 @@ userret:
         # can swap it with our a0 (TRAPFRAME) in the last step.
 
         #a0 是一个指向 trapframe 结构体的指针
-        ld t0, 112(a0)
-        csrw sscratch, t0
+        ld t0, 112(a0)  #将a0加载到t0
+        csrw sscratch, t0       #将t0存入sscratch，等于将a0存入sscrath
         #将保存的用户 a0 放入 sscratch，所以我们
         #可以在最后一步将它与我们的 a0 (TRAPFRAME) 交换
 
@@ -141,7 +142,7 @@ userret:
         ld t6, 280(a0)
 
 	# restore user a0, and save TRAPFRAME in sscratch
-        csrrw a0, sscratch, a0
+        csrrw a0, sscratch, a0  #交换a0和sscratch
 
         # return to user mode and user pc.
         # usertrapret() set up sstatus and sepc.

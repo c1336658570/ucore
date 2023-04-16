@@ -1,3 +1,23 @@
+#内核链接脚本
+'''
+这个脚本也会遍历../user/target/，并对每一个bin文件分配对齐的空间。
+最终修改后的kernel_app.ld脚本中多了如下对齐要求:
+.data : {
+    *(.data)
+    . = ALIGN(0x1000);
+    *(.data.app0)
+    . = ALIGN(0x1000);
+    *(.data.app1)
+    . = ALIGN(0x1000);
+    *(.data.app2)
+    . = ALIGN(0x1000);
+    *(.data.app3)
+    . = ALIGN(0x1000);
+    *(.data.app4)
+
+    *(.data.*)
+}
+'''
 import os
 
 TARGET_DIR = "../user/target/"

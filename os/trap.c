@@ -17,7 +17,7 @@ void trap_init(void)
 //处理来自用户空间的中断、异常或系统调用。
 // called from trampoline.S	
 //从 trampoline.S 调用
-void usertrap(struct trapframe *trapframe)
+void usertrap(struct trapframe *trapframe) //trapframe通过a0传递
 {
 	if ((r_sstatus() & SSTATUS_SPP) != 0)	//判断之前是否是用户模式，如果不是就panic
 		panic("usertrap: not from user mode");

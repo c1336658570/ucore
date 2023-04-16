@@ -4,7 +4,7 @@
 
 static int app_cur,app_num;
 static uint64* app_info_ptr;
-extern char _app_num[];//link_app.S
+extern char _app_num[];//link_app.S中定义，一个地址，是可执行文件的个数地址，此地址+8就是将二进制文件包含到汇编程序中的那条指令的地址
 extern char userret[];//trampoline.S
 extern char boot_stack_top[];//entry.S，内核栈的栈顶地址
 extern char ekernel[];//kernel_app.S
@@ -14,7 +14,7 @@ void loader_init()
     if((uint64)ekernel >= BASE_ADDRESS){
         panic("kernel too large\n");
     }
-    app_info_ptr=(uint64 *)_app_num;//？
+    app_info_ptr=(uint64 *)_app_num;// 由scripts/pack.py生成的os/link_app.S文件中的一个地址名
     app_cur=-1;//无app运行
     app_num=*app_info_ptr;
 }
@@ -24,6 +24,7 @@ __attribute__((aligned(4096))) char trap_page[TRAP_PAGE_SIZE];
 //user_stack 和 trap_page 在内存中的地址按照 4096 字节的倍数对齐
 
 
+//os内核读取link_app.S的info并把它们搬运到0x80400000开始位置的具体过程。
 int load_app(uint64 *info)
 {   
 	uint64 start = info[0], end = info[1], length = end - start;

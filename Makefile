@@ -73,15 +73,15 @@ $(HEADER_DEP): $(BUILDDIR)/$K/%.d : $K/%.c
         sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
         rm -f $@.$$$$
 
-os/link_app.o: $K/link_app.S
-os/link_app.S: scripts/pack.py
+os/link_app.o: $K/link_app.S	#由os/link_app.o生成os/link_app.S
+os/link_app.S: scripts/pack.py	#由scripts/pack.py生成os/link_app.S
 	@$(PY) scripts/pack.py
-os/kernel_app.ld: scripts/kernelld.py
+os/kernel_app.ld: scripts/kernelld.py #由scripts/kernelld.py生成os/kernel_app.ld
 	@$(PY) scripts/kernelld.py
 
 build: build/kernel
 
-build/kernel: $(OBJS) os/kernel_app.ld
+build/kernel: $(OBJS) os/kernel_app.ld	#构建kernel时候添加了kernel_app.ld链接器脚本
 	$(LD) $(LDFLAGS) -T os/kernel_app.ld -o $(BUILDDIR)/kernel $(OBJS)
 	$(OBJDUMP) -S $(BUILDDIR)/kernel > $(BUILDDIR)/kernel.asm
 	$(OBJDUMP) -t $(BUILDDIR)/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(BUILDDIR)/kernel.sym
