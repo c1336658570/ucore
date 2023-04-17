@@ -28,8 +28,10 @@ uint64 sys_sched_yield()
 	return 0;
 }
 
+/// tz 参数表示时区，这里我们忽略这个参数
 uint64 sys_gettimeofday(TimeVal *val, int _tz)
 {
+	//把 get_cycle 得到的 cycle 数换算了秒和微妙，填入对应结构。
 	uint64 cycle = get_cycle();
 	val->sec = cycle / CPU_FREQ;
 	val->usec = (cycle % CPU_FREQ) * 1000000 / CPU_FREQ;

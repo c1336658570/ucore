@@ -38,6 +38,7 @@ void shutdown()
 	sbi_call(SBI_SHUTDOWN, 0, 0, 0);
 }
 
+// 一个由 SEE 提供的标准 SBI 接口函数，它可以用来设置 mtimecmp 的值。
 void set_timer(uint64 stime)
 {
 	sbi_call(SBI_SET_TIMER, stime, 0, 0);

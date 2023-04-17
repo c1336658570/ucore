@@ -53,10 +53,10 @@ void usertrap()
 	if (cause & (1ULL << 63)) {
 		cause &= ~(1ULL << 63);
 		switch (cause) {
-		case SupervisorTimer:
+		case SupervisorTimer:	//触发了一个S特权级的时钟中断
 			tracef("time interrupt!\n");
-			set_next_timer();
-			yield();
+			set_next_timer();		//重新设置一个10ms的计时器
+			yield();						//yield 函数暂停当前应用并切换到下一个。
 			break;
 		default:
 			unknown_trap();
