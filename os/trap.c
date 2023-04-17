@@ -104,7 +104,7 @@ void usertrapret()
 	trapframe->kernel_trap = (uint64)usertrap;
 	trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
 
-	w_sepc(trapframe->epc);
+	w_sepc(trapframe->epc); //设置了sepc寄存器的值,回用户空间。
 	// set up the registers that trampoline.S's sret will use
 	// to get to user space.
 
@@ -116,5 +116,5 @@ void usertrapret()
 
 	// tell trampoline.S the user page table to switch to.
 	// uint64 satp = MAKE_SATP(p->pagetable);
-	userret((uint64)trapframe);
+	userret((uint64)trapframe);	//定义在trampoline.S中 恢复 trapframe 结构体之中的保存的U态执行流数据。
 }
