@@ -4,11 +4,14 @@
 #
 # Save current registers in old. Load from new.
 
+#执行流：通过切换 ra
+#堆栈：通过切换 sp
+#寄存器： 通过保存和恢复被调用者保存寄存器。调用者保存寄存器由编译器生成的代码负责保存和恢复。
 
 .globl swtch
 swtch:
-        sd ra, 0(a0)
-        sd sp, 8(a0)
+        sd ra, 0(a0)            #保存 ra
+        sd sp, 8(a0)            #保存 sp
         sd s0, 16(a0)
         sd s1, 24(a0)
         sd s2, 32(a0)
@@ -22,8 +25,8 @@ swtch:
         sd s10, 96(a0)
         sd s11, 104(a0)
 
-        ld ra, 0(a1)
-        ld sp, 8(a1)
+        ld ra, 0(a1)            #加载ra 
+        ld sp, 8(a1)            #加载sp
         ld s0, 16(a1)
         ld s1, 24(a1)
         ld s2, 32(a1)

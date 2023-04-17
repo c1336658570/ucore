@@ -10,7 +10,7 @@ struct context {
 	uint64 ra;
 	uint64 sp;
 
-	// callee-saved
+	//被调用者保存的寄存器
 	uint64 s0;
 	uint64 s1;
 	uint64 s2;

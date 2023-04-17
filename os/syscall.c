@@ -24,7 +24,7 @@ __attribute__((noreturn)) void sys_exit(int code)
 
 uint64 sys_sched_yield()
 {
-	yield();
+	yield();	//调用yield()放弃CPU，切换回idle进程，选择下一个要执行的程序
 	return 0;
 }
 

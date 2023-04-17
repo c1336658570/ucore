@@ -13,12 +13,12 @@ void clean_bss()
 
 void main()
 {
-	clean_bss();
-	proc_init();
-	loader_init();
-	trap_init();
-	timer_init();
-	run_all_app();
+	clean_bss();		// 清空 bss 段
+	proc_init();		// 初始化线程池
+	loader_init();	// 初始化 app_info_ptr 指针
+	trap_init();		// 开启中断
+	timer_init();		// 开启时钟中断，现在还没有
+	run_all_app();	// 加载所有用户程序
 	infof("start scheduler!");
-	scheduler();
+	scheduler();		// 开始调度
 }

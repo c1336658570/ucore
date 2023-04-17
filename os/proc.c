@@ -15,11 +15,13 @@ extern char boot_stack_top[];
 struct proc *current_proc;	//指向当前进程
 struct proc idle;		//boot进程（执行初始化的进程）
 
+//返回当前进程id
 int threadid()
 {
 	return curr_proc()->pid;
 }
 
+//返回当前进程控制块
 struct proc *curr_proc()
 {
 	return current_proc;
@@ -39,9 +41,9 @@ void proc_init(void)
 		* LAB1: you may need to initialize your new fields of proc here
 		*/
 	}
-	idle.kstack = (uint64)boot_stack_top;
-	idle.pid = 0;
-	current_proc = &idle;
+	idle.kstack = (uint64)boot_stack_top;	//设置idel进程内核栈顶
+	idle.pid = 0;	//设置idle进程id
+	current_proc = &idle;	//idle 进程是第一个进程(boot进程)，也是唯一一个永远会存在的进程，它还有一个大家更熟悉的面孔，它就是 os 的 main 函数。
 }
 
 //分配一个进程号
@@ -75,11 +77,10 @@ found:
 	return p;
 }
 
-// Scheduler never returns.  It loops, doing:
-//  - choose a process to run.
-//  - swtch to start running that process.
-//  - eventually that process transfers control
-//    via swtch back to the scheduler.
+// 调度程序远不会返回。它会循环执行以下操作：
+// - 选择一个要运行的进程。
+// - 调用 swtch 切换到该进程开始运行。
+// - 最终，该进程通过 swtch 将控制权转回调度程序。
 void scheduler(void)
 {
 	struct proc *p;
@@ -104,6 +105,10 @@ void scheduler(void)
 // be proc->intena and proc->noff, but that would
 // break in the few places where a lock is held but
 // there's no process.
+// 切换到调度器。 必须仅持有 p->lock
+// 并已经更改了 proc->state。保存并恢复
+// intena，因为 intena 是此内核线程的属性，而不是此 CPU 的属性。它应该是 proc->intena 
+// 和 proc->noff，但这会在少数持有锁但没有进程的位置出现问题。
 void sched(void)
 {
 	struct proc *p = curr_proc();
@@ -112,19 +117,19 @@ void sched(void)
 	swtch(&p->context, &idle.context);
 }
 
-// Give up the CPU for one scheduling round.
+// 放弃 CPU 进行下一轮调度。
 void yield(void)
 {
-	current_proc->state = RUNNABLE;
-	sched();
+	current_proc->state = RUNNABLE;		//将当前进程状态设置为可执行
+	sched();				//调用sched切换回进程调度器
 }
 
-// Exit the current process.
+//退出当前进程。
 void exit(int code)
 {
-	struct proc *p = curr_proc();
+	struct proc *p = curr_proc();		//获取当前进程控制块
 	infof("proc %d exit with %d", p->pid, code);
-	p->state = UNUSED;
-	finished();
-	sched();
+	p->state = UNUSED;	//修改进程状态位UNUSED
+	finished();					//
+	sched();						//切换回进程调度器
 }
