@@ -5,7 +5,7 @@
 
 #define NPROC (16)
 
-// Saved registers for kernel context switches.
+//内核上下文切换的保存寄存器。
 struct context {
 	uint64 ra;
 	uint64 sp;
@@ -25,16 +25,19 @@ struct context {
 	uint64 s11;
 };
 
+//进程的状态，包括UNUSED（未初始化）、USED（基本初始化，未加载用户程序）、
+//SLEEPING（睡眠中）、RUNNABLE（可运行）、RUNNING（运行中
+//ZOMBIE（已经exit）。
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
-// Per-process state
+//进程控制块（PCB）
 struct proc {
-	enum procstate state; // Process state
-	int pid; // Process ID
-	uint64 ustack; // Virtual address of user stack
-	uint64 kstack; // Virtual address of kernel stack
-	struct trapframe *trapframe; // data page for trampoline.S
-	struct context context; // swtch() here to run process
+	enum procstate state; //进程状态
+	int pid; //进程号
+	uint64 ustack; //用户栈的虚拟地址(用户页表)
+	uint64 kstack; ////内核栈的虚拟地址(内核页表)
+	struct trapframe *trapframe; //trampoline.S   进程中断帧
+	struct context context; //用于保存进程内核态的寄存器信息，进程切换时使用
 	/*
 	* LAB1: you may need to add some new fields here
 	*/
