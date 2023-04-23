@@ -9,7 +9,7 @@ extern char _app_num[], ekernel[];
 // Count finished programs. If all apps exited, shutdown.
 int finished()
 {
-	static int fin = 0;
+	static int fin = 0;	//记录已经有多少个用户程序执行完了
 	if (++fin >= app_num)
 		panic("all apps over");
 	return 0;

@@ -12,7 +12,7 @@ __attribute__((aligned(4096))) char ustack[NPROC][PAGE_SIZE];
 __attribute__((aligned(4096))) char trapframe[NPROC][PAGE_SIZE];
 
 extern char boot_stack_top[];
-struct proc *current_proc;	//指向当前进程
+struct proc *current_proc;	//指向当前正在执行的进程
 struct proc idle;		//boot进程（执行初始化的进程）
 
 //返回当前进程id
@@ -34,8 +34,8 @@ void proc_init(void)
 	struct proc *p;
 	for (p = pool; p < &pool[NPROC]; p++) {
 		p->state = UNUSED;	//将所有进程设置为未使用状态
-		p->kstack = (uint64)kstack[p - pool];	//p-pool是两个指针相减，代表俩指针之间该结构的个数，初始化用户栈虚拟地址
-		p->ustack = (uint64)ustack[p - pool];	//初始化内核栈虚拟地址
+		p->kstack = (uint64)kstack[p - pool];	//p-pool是两个指针相减，代表俩指针之间该结构的个数，初始化内核栈虚拟地址
+		p->ustack = (uint64)ustack[p - pool];	//初始化用户栈虚拟地址
 		p->trapframe = (struct trapframe *)trapframe[p - pool];	//初始化进程中断帧
 		/*
 		* LAB1: you may need to initialize your new fields of proc here
@@ -73,7 +73,7 @@ found:
 	memset(p->trapframe, 0, PAGE_SIZE);
 	memset((void *)p->kstack, 0, PAGE_SIZE);	//清空栈空间
 	p->context.ra = (uint64)usertrapret;	//设置进程第一次运行入口地址是usertrapret。得进程能够从内核的S态返回U态并执行自己的代码。
-	p->context.sp = p->kstack + PAGE_SIZE;
+	p->context.sp = p->kstack + PAGE_SIZE;	//因为切换进程是在内核态切换的，所以sp设置为进程内核栈顶
 	return p;
 }
 

@@ -7,6 +7,7 @@
 extern char trampoline[], uservec[];
 extern void *userret(uint64);
 
+//内核发生中断异常直接panic
 void kerneltrap()
 {
 	if ((r_sstatus() & SSTATUS_SPP) == 0)
@@ -31,6 +32,7 @@ void trap_init(void)
 	set_kerneltrap();
 }
 
+//未知异常/中断
 void unknown_trap()
 {
 	errorf("unknown trap: %p, stval = %p\n", r_scause(), r_stval());
@@ -50,7 +52,7 @@ void usertrap()
 		panic("usertrap: not from user mode");
 
 	uint64 cause = r_scause();
-	if (cause & (1ULL << 63)) {
+	if (cause & (1ULL << 63)) {	//判断是中断还是异常
 		cause &= ~(1ULL << 63);
 		switch (cause) {
 		case SupervisorTimer:	//触发了一个S特权级的时钟中断
@@ -96,12 +98,12 @@ void usertrap()
 //
 void usertrapret()
 {
-	set_usertrap();
+	set_usertrap();		//设置为接受异常和陷阱
 	struct trapframe *trapframe = curr_proc()->trapframe;
-	trapframe->kernel_satp = r_satp(); // kernel page table
+	trapframe->kernel_satp = r_satp(); //内核页表
 	trapframe->kernel_sp =
-		curr_proc()->kstack + PGSIZE; // process's kernel stack
-	trapframe->kernel_trap = (uint64)usertrap;
+		curr_proc()->kstack + PGSIZE; //进程的内核栈
+	trapframe->kernel_trap = (uint64)usertrap;	//用户出现异常中断调用该函数
 	trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
 
 	w_sepc(trapframe->epc); //设置了sepc寄存器的值,回用户空间。
