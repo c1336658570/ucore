@@ -20,6 +20,7 @@ void freerange(void *pa_start, void *pa_end)
 		kfree(p);
 }
 
+//ekernel为链接脚本定义的内核代码结束地址，PHYSTOP = 0x88000000
 void kinit()
 {
 	freerange(ekernel, (void *)PHYSTOP);
