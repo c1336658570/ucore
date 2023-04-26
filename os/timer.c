@@ -2,7 +2,7 @@
 #include "riscv.h"
 #include "sbi.h"
 
-/// read the `mtime` regiser
+/// read the `mtime` regiser，统计处理器自上电以来经过了多少个内置时钟的时钟周期。
 uint64 get_cycle()
 {
 	return r_time();
@@ -16,6 +16,7 @@ void timer_init()
 	set_next_timer();// 设置第一个 10ms 的计时器。
 }
 
+// mtimecmp 的作用是：一旦计数器 mtime 的值超过了 mtimecmp，就会触发一次时钟中断。
 ///设置下一个定时器中断，对set_timer()进行了封装
 void set_next_timer()
 {
