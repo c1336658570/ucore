@@ -286,27 +286,30 @@ static inline void sfence_vma()
 	asm volatile("sfence.vma zero, zero");
 }
 
-#define PGSIZE 4096 // bytes per page
-#define PGSHIFT 12 // bits of offset within a page
+#define PGSIZE 4096 // bytes per page	每页字节数
+#define PGSHIFT 12 // bits of offset within a page	页面内的偏移位
 
+//(sz + 4095) & ~4095  将sz和4095相加，并将低12位清空，以4K为粒度，获取页地址
 #define PGROUNDUP(sz) (((sz) + PGSIZE - 1) & ~(PGSIZE - 1))
-#define PGROUNDDOWN(a) (((a)) & ~(PGSIZE - 1))
-#define PGALIGNED(a) (((a) & (PGSIZE - 1)) == 0)
+#define PGROUNDDOWN(a) (((a)) & ~(PGSIZE - 1))		//低12位清0
+#define PGALIGNED(a) (((a) & (PGSIZE - 1)) == 0)	//判断低12位是否为0
 
-#define PTE_V (1L << 0) // valid
-#define PTE_R (1L << 1)
-#define PTE_W (1L << 2)
-#define PTE_X (1L << 3)
-#define PTE_U (1L << 4) // 1 -> user can access
+#define PTE_V (1L << 0) // valid有效的
+#define PTE_R (1L << 1)	//读
+#define PTE_W (1L << 2)	//写
+#define PTE_X (1L << 3)	//执行
+#define PTE_U (1L << 4) // 1 -> user can access 用户可以访问
 
 // shift a physical address to the right place for a PTE.
-#define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)
+#define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)	//物理地址到PTE（页表项）
 
-#define PTE2PA(pte) (((pte) >> 10) << 12)
+//PTE到物理地址
+#define PTE2PA(pte) (((pte) >> 10) << 12)	//将该页表项的高44位（也就是下一个页表的页号）取出
 
 #define PTE_FLAGS(pte) ((pte)&0x3FF)
 
 // extract the three 9-bit page table indices from a virtual address.
+//从虚拟地址中提取三个 9 位页表索引。
 #define PXMASK 0x1FF // 9 bits
 #define PXSHIFT(level) (PGSHIFT + (9 * (level)))
 #define PX(level, va) ((((uint64)(va)) >> PXSHIFT(level)) & PXMASK)
@@ -315,6 +318,8 @@ static inline void sfence_vma()
 // MAXVA is actually one bit less than the max allowed by
 // Sv39, to avoid having to sign-extend virtual addresses
 // that have the high bit set.
+// 超出最大可能的虚拟地址。
+// MAXVA实际上比Sv39允许的最大值小一个比特，以避免需要符号扩展具有高位设置的虚拟地址。
 #define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
 
 typedef uint64 pte_t;

@@ -46,14 +46,30 @@ void kvm_init(void)
 //   21..29 -- 9 bits of level-1 index.
 //   12..20 -- 9 bits of level-0 index.
 //    0..11 -- 12 bits of byte offset within the page.
+//返回PTE在页表pagetable中的地址
+//对应于虚拟地址va。如果分配！=0，
+//创建任何需要的页表页面。
+//
+//risc-v Sv39方案有三级页表
+//页。页表页包含 512 个 64 位 PTE。
+//一个 64 位的虚拟地址分为五个字段：
+//39..63 --必须为零。
+//30..38 --9 位二级索引。
+//21..29 --9 位一级索引。
+//12..20 --9 位 0 级索引。
+//0..11 --页内的 12 位字节偏移量。
+
+//模拟了CPU进行MMU的过程
+//三个参数分别是页表，待转换的虚拟地址va，以及如果没有对应的物理地址时是否分配物理地址。
 pte_t *walk(pagetable_t pagetable, uint64 va, int alloc)
 {
 	if (va >= MAXVA)
 		panic("walk");
 
+	//循环取出PPN[2],PPN[1]
 	for (int level = 2; level > 0; level--) {
-		pte_t *pte = &pagetable[PX(level, va)];
-		if (*pte & PTE_V) {
+		pte_t *pte = &pagetable[PX(level, va)];	//调用PX时level=2,取出PPN[2]，level=1，取出PPN[1]，然后通过访问pagetable数组，取出页表项
+		if (*pte & PTE_V) {	//如果该页表项有效，就取出高44位，低10位是一些标志位如X，R，W，D，G等
 			pagetable = (pagetable_t)PTE2PA(*pte);
 		} else {
 			if (!alloc || (pagetable = (pde_t *)kalloc()) == 0)
