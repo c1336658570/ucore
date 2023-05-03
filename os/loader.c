@@ -25,12 +25,21 @@ void loader_init()
 
 pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p)
 {
+	// pg 代表根页表地址，根页表大小恰好为 1 个页
+	//创建一个空的用户页表。
 	pagetable_t pg = uvmcreate();
+	// 映射 trapframe（中断帧），注意这里的权限!
 	if (mappages(pg, TRAPFRAME, PGSIZE, (uint64)p->trapframe,
 		     PTE_R | PTE_W) < 0) {
 		panic("mappages fail");
 	}
-	if (!PGALIGNED(start)) {
+
+	// 接下来映射用户实际地址空间，也就是把 physics address [start, end)
+  // 映射到虚拟地址 [BASE_ADDRESS, BASE_ADDRESS + length)
+
+	// riscv 指令有对齐要求，同时,如果不对齐直接映射的话会把部分内核地址映射到用户态，很不安全
+	// ch5我们就不需要这个限制了。
+	if (!PGALIGNED(start)) {	//判断低12位是否为0，不是0就panic
 		panic("user program not aligned, start = %p", start);
 	}
 	if (!PGALIGNED(end)) {
@@ -38,26 +47,33 @@ pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p)
 		warnf("Some kernel data maybe mapped to user, start = %p, end = %p",
 		      start, end);
 	}
-	end = PGROUNDUP(end);
-	uint64 length = end - start;
+	end = PGROUNDUP(end);	//获取结尾页地址
+	uint64 length = end - start;	//获取要映射的长度
+	//针对从虚拟地址 BASE_ADDRESS 开始的内存区域，创建对应的页表项（PTE），
+	//使其映射到从物理地址 start 开始的内存区域。
 	if (mappages(pg, BASE_ADDRESS, length, start,
-		     PTE_U | PTE_R | PTE_W | PTE_X) != 0) {
+		     PTE_U | PTE_R | PTE_W | PTE_X) != 0) {	
 		panic("mappages fail");
 	}
 	p->pagetable = pg;
+	// 接下来 map user stack， 注意这里的虚存选择，想想为何要这样？
 	uint64 ustack_bottom_vaddr = BASE_ADDRESS + length + PAGE_SIZE;
 	if (USTACK_SIZE != PAGE_SIZE) {
 		// Fix in ch5
 		panic("Unsupported");
 	}
+	//用户栈映射。针对从虚拟地址 ustack_bottom_vaddr 开始的内存区域，创建对应的页表项（PTE），
+	//使其映射到从物理地址 kalloc() 开始的内存区域。
 	mappages(pg, ustack_bottom_vaddr, USTACK_SIZE, (uint64)kalloc(),
 		 PTE_U | PTE_R | PTE_W | PTE_X);
-	p->ustack = ustack_bottom_vaddr;
-	p->trapframe->epc = BASE_ADDRESS;
-	p->trapframe->sp = p->ustack + USTACK_SIZE;
+	p->ustack = ustack_bottom_vaddr;	//修改栈指针
+	// 设置 trapframe
+	p->trapframe->epc = BASE_ADDRESS;	//修改指令指针
+	p->trapframe->sp = p->ustack + USTACK_SIZE;	//修改栈顶指针
+	 // exit 的时候会 unmap 页表中 [BASE_ADDRESS, max_page * PAGE_SIZE) 的页
 	p->max_page = PGROUNDUP(p->ustack + USTACK_SIZE - 1) / PAGE_SIZE;
 	p->program_brk = p->ustack + USTACK_SIZE;
-        p->heap_bottom = p->ustack + USTACK_SIZE;
+  p->heap_bottom = p->ustack + USTACK_SIZE;
 	return pg;
 }
 
