@@ -289,7 +289,7 @@ static inline void sfence_vma()
 #define PGSIZE 4096 // bytes per page	每页字节数
 #define PGSHIFT 12 // bits of offset within a page	页面内的偏移位
 
-//(sz + 4095) & ~4095  将sz和4095相加，并将低12位清空，以4K为粒度，获取页地址
+//(sz + 4095) & ~4095  将sz和4095相加，并将低12位清空，以4K为粒度，获取页地址，将sz向上对齐到页面边界上。
 #define PGROUNDUP(sz) (((sz) + PGSIZE - 1) & ~(PGSIZE - 1))
 #define PGROUNDDOWN(a) (((a)) & ~(PGSIZE - 1))		//低12位清0
 #define PGALIGNED(a) (((a) & (PGSIZE - 1)) == 0)	//判断低12位是否为0

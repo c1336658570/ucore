@@ -9,7 +9,7 @@
 
 pagetable_t kernel_pagetable;
 
-extern char e_text[]; //内核代码结尾 
+extern char e_text[]; //内核代码结尾
 extern char trampoline[];
 
 // Make a direct-map page table for the kernel.
@@ -81,17 +81,24 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc)
 
 	//循环取出PPN[2],PPN[1]
 	for (int level = 2; level > 0; level--) {
-		pte_t *pte = &pagetable[PX(level, va)];	//调用PX时level=2,取出PPN[2]，level=1，取出PPN[1]，然后通过访问pagetable数组，取出页表项
-		if (*pte & PTE_V) {	//如果该页表项有效，就取出高44位，低10位是一些标志位如X，R，W，D，G等
-			pagetable = (pagetable_t)PTE2PA(*pte);	//获取下一级页表的起始物理地址了
-		} else {	//该页表项无效，就分配一个页。
-			if (!alloc || (pagetable = (pde_t *)kalloc()) == 0)	
+		pte_t *pte = &pagetable[PX(
+			level,
+			va)]; //调用PX时level=2,取出PPN[2]，level=1，取出PPN[1]，然后通过访问pagetable数组，取出页表项
+		if (*pte &
+		    PTE_V) { //如果该页表项有效，就取出高44位，低10位是一些标志位如X，R，W，D，G等
+			pagetable = (pagetable_t)PTE2PA(
+				*pte); //获取下一级页表的起始物理地址了
+		} else { //该页表项无效，就分配一个页。
+			if (!alloc || (pagetable = (pde_t *)kalloc()) == 0)
 				return 0;
 			memset(pagetable, 0, PGSIZE);
-			*pte = PA2PTE(pagetable) | PTE_V;	//让*pte即该级页表的一个页表项指向新分配的页
+			*pte = PA2PTE(pagetable) |
+			       PTE_V; //让*pte即该级页表的一个页表项指向新分配的页
 		}
 	}
-	return &pagetable[PX(0, va)];	//返回最低一级的页表项，可以根据该页表项的高位和虚拟地址的12位偏移量共同组成物理地址
+	return &pagetable[PX(
+		0,
+		va)]; //返回最低一级的页表项，可以根据该页表项的高位和虚拟地址的12位偏移量共同组成物理地址
 }
 
 // Look up a virtual address, return the physical address,
@@ -105,17 +112,17 @@ uint64 walkaddr(pagetable_t pagetable, uint64 va)
 	pte_t *pte;
 	uint64 pa;
 
-	if (va >= MAXVA)	//超出最大虚拟地址
+	if (va >= MAXVA) //超出最大虚拟地址
 		return 0;
 
 	pte = walk(pagetable, va, 0);
 	if (pte == 0)
 		return 0;
-	if ((*pte & PTE_V) == 0)	//无效
+	if ((*pte & PTE_V) == 0) //无效
 		return 0;
-	if ((*pte & PTE_U) == 0)	//非用户页面
+	if ((*pte & PTE_U) == 0) //非用户页面
 		return 0;
-	pa = PTE2PA(*pte);	//获取虚拟地址对应的页的物理地址
+	pa = PTE2PA(*pte); //获取虚拟地址对应的页的物理地址
 	return pa;
 }
 
@@ -127,7 +134,7 @@ uint64 useraddr(pagetable_t pagetable, uint64 va)
 	uint64 page = walkaddr(pagetable, va);
 	if (page == 0)
 		return 0;
-	return page | (va & 0xFFFULL);	//获取物理地址
+	return page | (va & 0xFFFULL); //获取物理地址
 }
 
 // Add a mapping to the kernel page table.
@@ -156,16 +163,19 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 	uint64 a, last;
 	pte_t *pte;
 
-	a = PGROUNDDOWN(va);	//虚拟地址低12位清零（获取第一页的虚拟地址）
-	last = PGROUNDDOWN(va + size - 1);	//要转换的最后一个字节的虚拟地址低12位清零（即获取最后一页的虚拟地址）
+	a = PGROUNDDOWN(va); //虚拟地址低12位清零（获取第一页的虚拟地址）
+	last = PGROUNDDOWN(
+		va + size -
+		1); //要转换的最后一个字节的虚拟地址低12位清零（即获取最后一页的虚拟地址）
 	for (;;) {
-		if ((pte = walk(pagetable, a, 1)) == 0)	//获取最低一级的页表项（PTE）
+		if ((pte = walk(pagetable, a, 1)) ==
+		    0) //获取最低一级的页表项（PTE）
 			return -1;
-		if (*pte & PTE_V) {	//有效就打印错误信息，并返回
+		if (*pte & PTE_V) { //有效就打印错误信息，并返回
 			errorf("remap");
 			return -1;
 		}
-		*pte = PA2PTE(pa) | perm | PTE_V;		//物理地址到PTE（页表项）
+		*pte = PA2PTE(pa) | perm | PTE_V; //物理地址到PTE（页表项）
 		if (a == last)
 			break;
 		a += PGSIZE;
@@ -177,26 +187,30 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 // Remove npages of mappings starting from va. va must be
 // page-aligned. The mappings must exist.
 // Optionally free the physical memory.
+//删除从 va 开始的 n 页映射。必须是
+//页面对齐。映射必须存在。
+//可选择释放物理内存。
 void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 {
 	uint64 a;
 	pte_t *pte;
 
-	if ((va % PGSIZE) != 0)
+	if ((va % PGSIZE) != 0) //不是对其的就panic
 		panic("uvmunmap: not aligned");
 
 	for (a = va; a < va + npages * PGSIZE; a += PGSIZE) {
-		if ((pte = walk(pagetable, a, 0)) == 0)
+		if ((pte = walk(pagetable, a, 0)) == 0) //获取a的最低一级的PTE
 			continue;
-		if ((*pte & PTE_V) != 0) {
-			if (PTE_FLAGS(*pte) == PTE_V)
+		if ((*pte & PTE_V) != 0) { //PTE有效
+			if (PTE_FLAGS(*pte) ==
+			    PTE_V) //低12位==PTE_V，即只有PTE_V为1,其他位都为0，就panic
 				panic("uvmunmap: not a leaf");
-			if (do_free) {
-				uint64 pa = PTE2PA(*pte);
-				kfree((void *)pa);
+			if (do_free) { //do_free为1
+				uint64 pa = PTE2PA(*pte); //将PTE转为物理地址
+				kfree((void *)pa); //释放物理地址
 			}
 		}
-		*pte = 0;
+		*pte = 0; //删除PTE
 	}
 }
 
@@ -224,17 +238,21 @@ pagetable_t uvmcreate()
 
 // Recursively free page-table pages.
 // All leaf mappings must already have been removed.
+//递归释放页表页面。
+//必须已删除所有叶映射。
 void freewalk(pagetable_t pagetable)
 {
 	// there are 2^9 = 512 PTEs in a page table.
+	//页表中有 2^9 = 512 个 PTE。
 	for (int i = 0; i < 512; i++) {
-		pte_t pte = pagetable[i];
+		pte_t pte = pagetable[i]; //取PTE
 		if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0) {
 			// this PTE points to a lower-level page table.
-			uint64 child = PTE2PA(pte);
-			freewalk((pagetable_t)child);
-			pagetable[i] = 0;
-		} else if (pte & PTE_V) {
+			//这个 PTE 指向一个较低级别的页表。
+			uint64 child = PTE2PA(pte); //PTE转PA
+			freewalk((pagetable_t)child); //释放
+			pagetable[i] = 0; //将页表项设置为0
+		} else if (pte & PTE_V) { //有效且RWX都不为1就panic
 			panic("freewalk: leaf");
 		}
 	}
@@ -246,11 +264,18 @@ void freewalk(pagetable_t pagetable)
  *
  * @param max_page The max vaddr of user-space.
  */
+/*
+*@brief 释放用户内存页面，然后释放页表页面。
+*
+*@param max_page 用户空间的最大vaddr。
+*/
 void uvmfree(pagetable_t pagetable, uint64 max_page)
 {
 	if (max_page > 0)
-		uvmunmap(pagetable, 0, max_page, 1);
-	freewalk(pagetable);
+		uvmunmap(
+			pagetable, 0, max_page,
+			1); //释放虚拟地址从0 -> max_page之间的所有虚拟内存所对应的物理内存，并清除PTE
+	freewalk(pagetable); //递归释放页表页面
 }
 
 // Copy from kernel to user.
@@ -265,18 +290,19 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 	uint64 n, va0, pa0;
 
 	while (len > 0) {
-		va0 = PGROUNDDOWN(dstva);	//低12位清零
-		pa0 = walkaddr(pagetable, va0);	////获取该虚拟页对应的物理页地址
+		va0 = PGROUNDDOWN(dstva); //低12位清零
+		pa0 = walkaddr(pagetable, va0); ////获取该虚拟页对应的物理页地址
 		if (pa0 == 0)
 			return -1;
-		n = PGSIZE - (dstva - va0);	//通过PGSIZE-页内偏移获取页剩余字节数
+		n = PGSIZE -
+		    (dstva - va0); //通过PGSIZE-页内偏移获取页剩余字节数
 		if (n > len)
 			n = len;
 		memmove((void *)(pa0 + (dstva - va0)), src, n);
 
 		len -= n;
 		src += n;
-		dstva = va0 + PGSIZE;	//进入下一页（处理虚存跨页的情况）
+		dstva = va0 + PGSIZE; //进入下一页（处理虚存跨页的情况）
 	}
 	return 0;
 }
@@ -293,18 +319,20 @@ int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 	uint64 n, va0, pa0;
 
 	while (len > 0) {
-		va0 = PGROUNDDOWN(srcva);	//低12位清零
-		pa0 = walkaddr(pagetable, va0);	////获取该虚拟页对应的物理页地址
+		va0 = PGROUNDDOWN(srcva); //低12位清零
+		pa0 = walkaddr(pagetable, va0); ////获取该虚拟页对应的物理页地址
 		if (pa0 == 0)
 			return -1;
-		n = PGSIZE - (srcva - va0);	//通过PGSIZE-页内偏移获取页剩余字节数
-		if (n > len)	//如果剩余字节比要写入内核的字节数多就让n=要写入内核的字节数
+		n = PGSIZE -
+		    (srcva - va0); //通过PGSIZE-页内偏移获取页剩余字节数
+		if (n >
+		    len) //如果剩余字节比要写入内核的字节数多就让n=要写入内核的字节数
 			n = len;
 		memmove(dst, (void *)(pa0 + (srcva - va0)), n);
 
 		len -= n;
 		dst += n;
-		srcva = va0 + PGSIZE;	//进入下一页（处理虚存跨页的情况）
+		srcva = va0 + PGSIZE; //进入下一页（处理虚存跨页的情况）
 	}
 	return 0;
 }
@@ -323,15 +351,17 @@ int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 	int got_null = 0, len = 0;
 
 	while (got_null == 0 && max > 0) {
-		va0 = PGROUNDDOWN(srcva);	//低12位清0
-		pa0 = walkaddr(pagetable, va0);	//获取该虚拟页对应的物理页地址
+		va0 = PGROUNDDOWN(srcva); //低12位清0
+		pa0 = walkaddr(pagetable, va0); //获取该虚拟页对应的物理页地址
 		if (pa0 == 0)
 			return -1;
-		n = PGSIZE - (srcva - va0);	//通过PGSIZE-页内偏移获取页剩余字节数
-		if (n > max)		//如果剩余字节比要写入内核的字节数多就让n=要写入内核的字节数
+		n = PGSIZE -
+		    (srcva - va0); //通过PGSIZE-页内偏移获取页剩余字节数
+		if (n >
+		    max) //如果剩余字节比要写入内核的字节数多就让n=要写入内核的字节数
 			n = max;
 
-		char *p = (char *)(pa0 + (srcva - va0));	//获取源字节的物理地址
+		char *p = (char *)(pa0 + (srcva - va0)); //获取源字节的物理地址
 		while (n > 0) {
 			if (*p == '\0') {
 				*dst = '\0';
@@ -347,52 +377,57 @@ int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 			len++;
 		}
 
-		srcva = va0 + PGSIZE;	//进入下一页（处理虚存跨页的情况）
+		srcva = va0 + PGSIZE; //进入下一页（处理虚存跨页的情况）
 	}
 	return len;
 }
 
 // Allocate PTEs and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
+//分配页表项和物理内存以将进程从旧尺寸 oldsz 扩展到新尺寸 newsz，
+//新尺寸不需要对齐到页边界。函数返回新的进程大小，如果出现错误，则返回0。
 uint64 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
 {
-        char *mem;
-        uint64 a;
+	char *mem;
+	uint64 a;
 
-        if(newsz < oldsz)
-                return oldsz;
+	if (newsz < oldsz)
+		return oldsz;
 
-        oldsz = PGROUNDUP(oldsz);
-        for(a = oldsz; a < newsz; a += PGSIZE){
-                mem = kalloc();
-                if(mem == 0){
-                        uvmdealloc(pagetable, a, oldsz);
-                        return 0;
-                }
-                memset(mem, 0, PGSIZE);
-                if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R|PTE_U|xperm) != 0){
-                        kfree(mem);
-                        uvmdealloc(pagetable, a, oldsz);
-                        return 0;
-                }
-        }
-        return newsz;
+	oldsz = PGROUNDUP(oldsz);		//将oldsz向上对齐到页面边界上。
+	for (a = oldsz; a < newsz; a += PGSIZE) {
+		mem = kalloc();	//分配页
+		if (mem == 0) {	//分配失败
+			uvmdealloc(pagetable, a, oldsz);
+			return 0;
+		}
+		memset(mem, 0, PGSIZE);	//页初始化为0
+		if (mappages(pagetable, a, PGSIZE, (uint64)mem,
+			     PTE_R | PTE_U | xperm) != 0) {	//虚拟地址从a开始PGSIZE个字节映射到mem，映射失败就释放内存。
+			kfree(mem);
+			uvmdealloc(pagetable, a, oldsz);
+			return 0;
+		}
+	}
+	return newsz;
 }
 
 // Deallocate user pages to bring the process size from oldsz to
 // newsz.  oldsz and newsz need not be page-aligned, nor does newsz
 // need to be less than oldsz.  oldsz can be larger than the actual
 // process size.  Returns the new process size.
+//回收内存页，以将进程的大小从旧尺寸 oldsz 调整为新尺寸 newsz。
+//旧尺寸和新尺寸不需要对齐到页边界，newsz 也不需要小于 oldsz。oldsz 可以大于实际进程大小。
+//函数返回新的进程大小。
 uint64 uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 {
-        if(newsz >= oldsz)
-                return oldsz;
+	if (newsz >= oldsz)
+		return oldsz;
 
-        if(PGROUNDUP(newsz) < PGROUNDUP(oldsz)){
-                int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
-                uvmunmap(pagetable, PGROUNDUP(newsz), npages, 1);
-        }
+	if (PGROUNDUP(newsz) < PGROUNDUP(oldsz)) {	//newsz和oldsz向上对齐到页面边界上。对其后newsz < oldsz
+		int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;	//求需要释放的页面数量
+		uvmunmap(pagetable, PGROUNDUP(newsz), npages, 1);	//删除从newsz开始的npages页映射，并释放物理内存。
+	}
 
-        return newsz;
+	return newsz;
 }
-

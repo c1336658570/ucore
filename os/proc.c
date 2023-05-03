@@ -136,22 +136,24 @@ void exit(int code)
 
 // Grow or shrink user memory by n bytes.
 // Return 0 on succness, -1 on failure.
+//将用户内存增加或缩小 n 字节。
+//成功返回 0，失败返回 -1。
 int growproc(int n)
 {
-        uint64 program_brk;
-        struct proc *p = curr_proc();
-        program_brk = p->program_brk;
-        int new_brk = program_brk + n - p->heap_bottom;
-        if(new_brk < 0){
-                return -1;
-        }
-        if(n > 0){
-                if((program_brk = uvmalloc(p->pagetable, program_brk, program_brk + n, PTE_W)) == 0) {
-                        return -1;
-                }
-        } else if(n < 0){
-                program_brk = uvmdealloc(p->pagetable, program_brk, program_brk + n);
-        }
-        p->program_brk = program_brk;
-        return 0;
+	uint64 program_brk;
+	struct proc *p = curr_proc();
+	program_brk = p->program_brk;
+	int new_brk = program_brk + n - p->heap_bottom;
+	if(new_brk < 0){
+		return -1;
+	}
+	if(n > 0){
+		if((program_brk = uvmalloc(p->pagetable, program_brk, program_brk + n, PTE_W)) == 0) {
+			return -1;
+		}
+	} else if(n < 0){
+		program_brk = uvmdealloc(p->pagetable, program_brk, program_brk + n);
+	}
+	p->program_brk = program_brk;
+	return 0;
 }
