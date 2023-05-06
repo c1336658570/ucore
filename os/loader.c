@@ -47,7 +47,7 @@ pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p)
 		warnf("Some kernel data maybe mapped to user, start = %p, end = %p",
 		      start, end);
 	}
-	end = PGROUNDUP(end);	//获取结尾页地址
+	end = PGROUNDUP(end);	//将end向上对齐到页面边界
 	uint64 length = end - start;	//获取要映射的长度
 	//针对从虚拟地址 BASE_ADDRESS 开始的内存区域，创建对应的页表项（PTE），
 	//使其映射到从物理地址 start 开始的内存区域。
@@ -71,7 +71,7 @@ pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p)
 	p->trapframe->epc = BASE_ADDRESS;	//修改指令指针
 	p->trapframe->sp = p->ustack + USTACK_SIZE;	//修改栈顶指针
 	 // exit 的时候会 unmap 页表中 [BASE_ADDRESS, max_page * PAGE_SIZE) 的页
-	p->max_page = PGROUNDUP(p->ustack + USTACK_SIZE - 1) / PAGE_SIZE;
+	p->max_page = PGROUNDUP(p->ustack + USTACK_SIZE - 1) / PAGE_SIZE;	//最大页号
 	p->program_brk = p->ustack + USTACK_SIZE;
   p->heap_bottom = p->ustack + USTACK_SIZE;
 	return pg;

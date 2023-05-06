@@ -125,13 +125,14 @@ void freeproc(struct proc *p)
 }
 
 // Exit the current process.
+//退出当前进程。
 void exit(int code)
 {
 	struct proc *p = curr_proc();
 	infof("proc %d exit with %d", p->pid, code);
-	freeproc(p);
-	finished();
-	sched();
+	freeproc(p);	//回收进程
+	finished();		//记录完成的程序的计数器加1
+	sched();			//调度下一个进程
 }
 
 // Grow or shrink user memory by n bytes.
@@ -147,11 +148,11 @@ int growproc(int n)
 	if(new_brk < 0){
 		return -1;
 	}
-	if(n > 0){
+	if(n > 0){	//通过调用uvmalloc分配内存
 		if((program_brk = uvmalloc(p->pagetable, program_brk, program_brk + n, PTE_W)) == 0) {
 			return -1;
 		}
-	} else if(n < 0){
+	} else if(n < 0){	//通过uvmdealloc回收内存
 		program_brk = uvmdealloc(p->pagetable, program_brk, program_brk + n);
 	}
 	p->program_brk = program_brk;

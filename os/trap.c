@@ -70,16 +70,16 @@ void usertrap()
 			syscall();
 			break;
 		case StoreMisaligned:
-                case StorePageFault:
-                case InstructionMisaligned:
-                case InstructionPageFault:
-                case LoadMisaligned:
-                case LoadPageFault:
-                        errorf("%d in application, bad addr = %p, bad instruction = %p, "
-                               "core dumped.",
-                               cause, r_stval(), trapframe->epc);
-                        exit(-2);
-                        break;
+		case StorePageFault:
+		case InstructionMisaligned:
+		case InstructionPageFault:
+		case LoadMisaligned:
+		case LoadPageFault:
+			errorf("%d in application, bad addr = %p, bad instruction = %p, "
+			       "core dumped.",
+			       cause, r_stval(), trapframe->epc);
+			exit(-2);
+			break;
 		case IllegalInstruction:
 			errorf("IllegalInstruction in application, core dumped.");
 			exit(-3);
@@ -116,9 +116,9 @@ void usertrapret()
 	w_sstatus(x);
 
 	// tell trampoline.S the user page table to switch to.
+	//告诉 trampoline.S 要切换到的用户页表。
 	uint64 satp = MAKE_SATP(curr_proc()->pagetable);
-	uint64 fn = TRAMPOLINE + (userret - trampoline);
+	uint64 fn = TRAMPOLINE + (userret - trampoline);	//函数入口地址
 	tracef("return to user @ %p", trapframe->epc);
-	((void (*)(uint64, uint64))fn)(TRAPFRAME, satp);
+	((void (*)(uint64, uint64))fn)(TRAPFRAME, satp);	//将fn强转为一个指向函数的指针并进行调用
 }
-

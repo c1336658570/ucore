@@ -166,7 +166,7 @@ static inline void w_mtvec(uint64 x)
 }
 
 // use riscv's sv39 page table scheme.
-#define SATP_SV39 (8L << 60)
+#define SATP_SV39 (8L << 60)	//第63位变为1
 
 #define MAKE_SATP(pagetable) (SATP_SV39 | (((uint64)pagetable) >> 12))
 
@@ -292,7 +292,7 @@ static inline void sfence_vma()
 //(sz + 4095) & ~4095  将sz和4095相加，并将低12位清空，以4K为粒度，获取页地址，将sz向上对齐到页面边界上。
 #define PGROUNDUP(sz) (((sz) + PGSIZE - 1) & ~(PGSIZE - 1))
 #define PGROUNDDOWN(a) (((a)) & ~(PGSIZE - 1))		//低12位清0
-#define PGALIGNED(a) (((a) & (PGSIZE - 1)) == 0)	//判断低12位是否为0
+#define PGALIGNED(a) (((a) & (PGSIZE - 1)) == 0)	//判断低12位是否为0,即是否页面对齐
 
 #define PTE_V (1L << 0) // valid有效的
 #define PTE_R (1L << 1)	//读

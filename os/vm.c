@@ -386,6 +386,7 @@ int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
 //分配页表项和物理内存以将进程从旧尺寸 oldsz 扩展到新尺寸 newsz，
 //新尺寸不需要对齐到页边界。函数返回新的进程大小，如果出现错误，则返回0。
+//参数oldsz，和newsz不是大小，而是旧的内存的地址和新的内存的虚拟地址。
 uint64 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
 {
 	char *mem;
@@ -398,12 +399,12 @@ uint64 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
 	for (a = oldsz; a < newsz; a += PGSIZE) {
 		mem = kalloc();	//分配页
 		if (mem == 0) {	//分配失败
-			uvmdealloc(pagetable, a, oldsz);
+			uvmdealloc(pagetable, a, oldsz);	//将之前分配的释放掉，第一次循环就分配失败进入该函数什么都不做
 			return 0;
 		}
 		memset(mem, 0, PGSIZE);	//页初始化为0
 		if (mappages(pagetable, a, PGSIZE, (uint64)mem,
-			     PTE_R | PTE_U | xperm) != 0) {	//虚拟地址从a开始PGSIZE个字节映射到mem，映射失败就释放内存。
+			     PTE_R | PTE_U | xperm) != 0) {	//虚拟地址从a开始PGSIZE个字节映射到mem，映射失败就释放内存，并删除页表项。
 			kfree(mem);
 			uvmdealloc(pagetable, a, oldsz);
 			return 0;
@@ -417,7 +418,7 @@ uint64 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
 // need to be less than oldsz.  oldsz can be larger than the actual
 // process size.  Returns the new process size.
 //回收内存页，以将进程的大小从旧尺寸 oldsz 调整为新尺寸 newsz。
-//旧尺寸和新尺寸不需要对齐到页边界，newsz 也不需要小于 oldsz。oldsz 可以大于实际进程大小。
+//旧尺寸和新尺寸不需要对齐到页边界，newsz 必需要小于 oldsz。oldsz 可以大于实际进程大小。
 //函数返回新的进程大小。
 uint64 uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 {
