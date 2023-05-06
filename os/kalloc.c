@@ -15,7 +15,7 @@ struct {
 void freerange(void *pa_start, void *pa_end)
 {
 	char *p;
-	p = (char *)PGROUNDUP((uint64)pa_start);	//获取第一个页的地址
+	p = (char *)PGROUNDUP((uint64)pa_start);	//将pa_start向上对其的页面边界
 	for (; p + PGSIZE <= (char *)pa_end; p += PGSIZE)	//只要未循环到物理内存末尾，就一直循环，初始化页
 		kfree(p);
 }
