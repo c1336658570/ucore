@@ -171,18 +171,21 @@ int fork()
 {
 	struct proc *np;
 	struct proc *p = curr_proc();
-	// Allocate process.
+	//分配进程。
 	if ((np = allocproc()) == 0) {
 		panic("allocproc\n");
 	}
 	// Copy user memory from parent to child.
+	//将用户内存从父母复制到孩子。
 	if (uvmcopy(p->pagetable, np->pagetable, p->max_page) < 0) {
 		panic("uvmcopy\n");
 	}
 	np->max_page = p->max_page;
 	// copy saved user registers.
+	//复制保存的用户寄存器。
 	*(np->trapframe) = *(p->trapframe);
 	// Cause fork to return 0 in the child.
+	//导致 fork 在子进程中返回 0。
 	np->trapframe->a0 = 0;
 	np->parent = p;
 	np->state = RUNNABLE;
@@ -190,18 +193,26 @@ int fork()
 	return np->pid;
 }
 
+//由于 trapframe 和 trampoline 是可以复用的（每个进程都一样），所以我们并不会把他们 unmap。
+//而对于用户真正的数据，就会删掉映射的同时把物理页面也 free 掉。
+//传入待执行测例的文件名。之后会找到文件名对应的id。如果存在对应文件，就会执行内存的释放。
 int exec(char *name)
 {
-	int id = get_id_by_name(name);
+	int id = get_id_by_name(name);	//通过name得到是第几个可执行程序
 	if (id < 0)
 		return -1;
 	struct proc *p = curr_proc();
-	uvmunmap(p->pagetable, 0, p->max_page, 1);
+	uvmunmap(p->pagetable, 0, p->max_page, 1);	////删除从p->pagetable开始的p->max_page页映射。并释放物理内存。
 	p->max_page = 0;
-	loader(id, p);
+	loader(id, p);	//加载id所对应的程序到该进程
 	return 0;
 }
 
+//pid 表示要等待结束的子进程的进程 ID，如果为 0或者-1 的话表示等待任意一个子进程结束；
+//status 表示保存子进程返回值的地址，如果这个地址为 0 的话表示不必保存。
+//返回值：如果出现了错误则返回 -1；否则返回结束的子进程的进程 ID。
+//如果子进程存在且尚未完成，该系统调用阻塞等待。
+//pid 非法或者指定的不是该进程的子进程或传入的地址 status 不为 0 但是不合法均会导致错误。
 int wait(int pid, int *code)
 {
 	struct proc *np;

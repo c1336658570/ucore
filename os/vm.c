@@ -216,6 +216,8 @@ void uvmfree(pagetable_t pagetable, uint64 max_page)
 // Used in fork.
 // Copy the pagetable page and all the user pages.
 // Return 0 on success, -1 on error.
+//创建一个空的用户页表。
+//如果内存不足则返回 0。
 int uvmcopy(pagetable_t old, pagetable_t new, uint64 max_page)
 {
 	pte_t *pte;
@@ -224,17 +226,17 @@ int uvmcopy(pagetable_t old, pagetable_t new, uint64 max_page)
 	char *mem;
 
 	for (i = 0; i < max_page * PAGE_SIZE; i += PGSIZE) {
-		if ((pte = walk(old, i, 0)) == 0)
+		if ((pte = walk(old, i, 0)) == 0)	//未找到虚拟地址i对应页表项continue
 			continue;
-		if ((*pte & PTE_V) == 0)
+		if ((*pte & PTE_V) == 0)	//找到了且无效，continue
 			continue;
-		pa = PTE2PA(*pte);
-		flags = PTE_FLAGS(*pte);
-		if ((mem = kalloc()) == 0)
+		pa = PTE2PA(*pte);	//PTE转PA
+		flags = PTE_FLAGS(*pte);	//获取低12位，即权限位
+		if ((mem = kalloc()) == 0)	//内存分配失败直接去err
 			goto err;
-		memmove(mem, (char *)pa, PGSIZE);
-		if (mappages(new, i, PGSIZE, (uint64)mem, flags) != 0) {
-			kfree(mem);
+		memmove(mem, (char *)pa, PGSIZE);	//用pa所指向内存初始化mem
+		if (mappages(new, i, PGSIZE, (uint64)mem, flags) != 0) {	//将虚拟地址从i开始映射，映射PGSIZE个字节，对应的物理地址是从mem开始
+			kfree(mem);	//映射失败，释放mem，去err
 			goto err;
 		}
 	}

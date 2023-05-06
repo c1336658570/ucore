@@ -24,6 +24,7 @@ void loader_init()
 	}
 }
 
+//通过可执行程序名返回其是第几个
 int get_id_by_name(char *name)
 {
 	for (int i = 0; i < app_num; ++i) {
