@@ -1,4 +1,6 @@
 # uCore-Tutorial-Code
+make run LOG=debug运行
+
 test-20:34
 Course project for THU-OS.
 
