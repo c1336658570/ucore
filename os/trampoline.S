@@ -36,10 +36,20 @@ uservec:        #os保存了U态执行流的各个寄存器的值。
 
 	# swap a0 and sscratch
         # so that a0 is TRAPFRAME
+        # trap.c将stvec设置为此处，因此
+        # 用户空间的陷阱从此处开始，
+        # 在监管者模式下，但使用用户页表。
+        #
+        # sscratch指向进程的p->trapframe映射到用户空间的位置，即TRAPFRAME。
+        #
+
+        # 交换a0和sscratch
+        # 以便a0是TRAPFRAME。
         csrrw a0, sscratch, a0          #交换a0和sscrath
         #sscratch这个CSR寄存器的作用就是一个cache，它只负责存某一个值，这里它保存的就是TRAPFRAME结构体的位置。
         # save the user registers in TRAPFRAME
 
+        #未保存kernel_satp，kernel_sp，kernel_trap，kernel_hartid这4个寄存器，这4个寄存器内核使用
         #保存ra-t6（a0除外）
         sd ra, 40(a0)
         sd sp, 48(a0)
@@ -110,6 +120,7 @@ userret:
         #可以在最后一步将它与我们的 a0 (TRAPFRAME) 交换
 
         # restore all but a0 from TRAPFRAME
+        #将trapframe中的ra-t6全部加载到寄存器ra-t6
         ld ra, 40(a0)
         ld sp, 48(a0)
         ld gp, 56(a0)

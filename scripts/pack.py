@@ -1,10 +1,16 @@
-#os/生成link_app.S
+#生成os/link_app.S，内核中通过访问 link_app.S 中定义的 _app_num、app_0_start 等符号来获得用户程序位置.
 '''
 pack.py会遍历../user/target/bin，并将该目录下的目标用户程序*.bin包含入
 link_app.S中，同时给每一个bin文件记录其地址和名称信息。
 最后，我们在 Makefile 中会将内核与 link_app.S 一同编译并链接。
 这样，我们在内核中就可以通过 extern 指令访问到用户程序的所有信息，如其文件名等。
 '''
+
+'''
+操作系统本身需要完成对Binary应用的位置查找，找到后（通过os/link_app.S中的变量和标号信息完成），
+会把Binary应用拷贝到os/kernel_app.ld 指定的物理内存位置（OS的加载应用功能）。
+'''
+
 import os
 
 TARGET_DIR = "./user/target/bin/"

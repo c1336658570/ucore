@@ -2,12 +2,12 @@
 #include"defs.h"
 #include"trap.h"
 
-static int app_cur,app_num;
-static uint64* app_info_ptr;
+static int app_cur,app_num;	//app_cur为当前是第几个app在运行，app_num是app的个数
+static uint64* app_info_ptr;	//保存要执行的那个app的地址
 extern char _app_num[];//link_app.S中定义，一个地址，是可执行文件的个数地址，此地址+8就是将二进制文件包含到汇编程序中的那条指令的地址
 extern char userret[];//trampoline.S
 extern char boot_stack_top[];//entry.S，内核栈的栈顶地址
-extern char ekernel[];//kernel_app.S
+extern char ekernel[];//kernel_app.ld
 
 void loader_init()
 {
@@ -49,6 +49,7 @@ int run_next_app()
 	//debugf("bin range = [%p, %p)", *app_info_ptr, *app_info_ptr + length);
 	memset(trapframe, 0, 4096);//清空trap结构体
 	trapframe->epc = BASE_ADDRESS;//执行位置
+	//将用户栈对应的起始位置写入trapframe之中的sp寄存器，来让程序找到自己用户栈起始的位置。
 	trapframe->sp = (uint64)user_stack + USER_STACK_SIZE;//用户栈栈顶
 
 	usertrapret(trapframe, (uint64)boot_stack_top);

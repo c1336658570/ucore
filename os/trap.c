@@ -9,7 +9,7 @@ extern void *userret(uint64);
 // set up to take exceptions and traps while in the kernel.
 void trap_init(void)
 {
-	w_stvec((uint64)uservec & ~0x3);	//userver是在trampoline.S中定义的函数，写 stvec, 
+	w_stvec((uint64)uservec & ~0x3);	//userver是在trampoline.S中定义的函数，写stvec,stvec保存了处理异常的函数的起始地址
 	//最后两位表明跳转模式，该实验始终为 0
 }
 
@@ -60,19 +60,21 @@ void usertrap(struct trapframe *trapframe) //trapframe通过a0传递
 void usertrapret(struct trapframe *trapframe, uint64 kstack)	//从S态返回U态
 {
 	//这里设置了返回地址sepc，并调用另外一个 userret 汇编函数来恢复 trapframe 结构体之中的保存的U态执行流数据。
-	trapframe->kernel_satp = r_satp(); // kernel page table
-	trapframe->kernel_sp = kstack + PGSIZE; // process's kernel stack
+	trapframe->kernel_satp = r_satp(); // kernel page table	//内核页表
+	trapframe->kernel_sp = kstack + PGSIZE; // process's kernel stack	//内核栈
 	trapframe->kernel_trap = (uint64)usertrap;
-	trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
+	trapframe->kernel_hartid = r_tp(); // hartid for cpuid()	//cpuid() 的 hartid
 
 	w_sepc(trapframe->epc);	// 设置了sepc寄存器的值,回用户空间。
 	// set up the registers that trampoline.S's sret will use
 	// to get to user space.
-
+	// 设置 trampoline.S 的 sret 使用的寄存器
+	// 以便跳转到用户空间。
 	// set S Previous Privilege mode to User.
+	//将 S 上一个特权模式设置为用户模式
 	uint64 x = r_sstatus();
-	x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
-	x |= SSTATUS_SPIE; // enable interrupts in user mode
+	x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode	机器模式M11 HypervisorH10 监管者模式S01 用户模式U00
+	x |= SSTATUS_SPIE; // enable interrupts in user mode	//在用户模式下启用中断
 	w_sstatus(x);
 
 	// tell trampoline.S the user page table to switch to.

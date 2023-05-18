@@ -4,6 +4,22 @@
 
 __ syscall1，__ syscall2，__ syscall3等函数定义在user/lib/arch/riscv/syscall_arch.h中，在__ syscall1、__ syscall2等函数中使用了ecall（异常的一种），会触发异常。然后执行异常处理函数（异常处理函数的地址在stvec中保存），即执行os/trampoline.S的uservec函数，该函数先将用户程序的各个寄存器保存，然后跳转到os/trap.c的usertrap函数，usertrap函数先读取sstatus寄存器，判断异常或中断原因，如果是系统调用就执行系统调用，然后恢复用户程序的寄存器，如果是其他异常，就直接去加载下一个应用程序，然后执行下一个应用程序。
 
+问：为什么trampoline.S中uservec调用时，sscratch保存的是trapframe的地址？
+因为在main函数中调用了run_next_app，然后run_next_app中调用usertrapret，在usertrapret会设置
+trapframe->kernel_satp = r_satp(); // kernel page table	//内核页表
+trapframe->kernel_sp = kstack + PGSIZE; // process's kernel stack	//内核栈
+trapframe->kernel_trap = (uint64)usertrap;
+trapframe->kernel_hartid = r_tp();
+usertrapret会调用userret，在userret里面会设置sscratch寄存器，让其保存trapframe的地址
+所以以后调用userver的时候，sscratch保存的就是trapframe结构体的地址
+
+问：为什么从uservc返回的时候读取，kernel_trap，其中kernel_trap保存的是usertrap的地址？
+因为在main函数中调用了run_next_app，然后run_next_app中调用usertrapret，在usertrapret会设置
+trapframe->kernel_satp = r_satp(); // kernel page table	//内核页表
+trapframe->kernel_sp = kstack + PGSIZE; // process's kernel stack	//内核栈
+trapframe->kernel_trap = (uint64)usertrap;
+trapframe->kernel_hartid = r_tp();
+
 U态进行ecall调用具体的异常编号是8-Environment call from U-mode。RISCV处理异常需要引入几个特殊的寄存器——CSR寄存器。
 
 S态的CSR寄存器：

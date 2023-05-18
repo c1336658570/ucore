@@ -73,7 +73,7 @@ $(HEADER_DEP): $(BUILDDIR)/$K/%.d : $K/%.c
         sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
         rm -f $@.$$$$
 
-os/link_app.o: $K/link_app.S	#由os/link_app.o生成os/link_app.S
+os/link_app.o: $K/link_app.S	#由os/link_app.S生成os/link_app.o
 os/link_app.S: scripts/pack.py	#由scripts/pack.py生成os/link_app.S
 	@$(PY) scripts/pack.py
 os/kernel_app.ld: scripts/kernelld.py #由scripts/kernelld.py生成os/kernel_app.ld

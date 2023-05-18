@@ -5,11 +5,11 @@
 //在uservec之中，os保存了U态执行流的各个寄存器的值
 //这些值的位置trap.h中的trapframe结构体规定好了
 struct trapframe {
-	/*   0 */ uint64 kernel_satp; // kernel page table
-	/*   8 */ uint64 kernel_sp; // top of process's kernel stack
+	/*   0 */ uint64 kernel_satp; // kernel page table		//内核页表
+	/*   8 */ uint64 kernel_sp; // top of process's kernel stack	//进程内核栈的顶部
 	/*  16 */ uint64 kernel_trap; // usertrap()
-	/*  24 */ uint64 epc; // saved user program counter
-	/*  32 */ uint64 kernel_hartid; // saved kernel tp
+	/*  24 */ uint64 epc; // saved user program counter		//保存的用户程序计数器
+	/*  32 */ uint64 kernel_hartid; // saved kernel tp		//保存内核 tp
 	/*  40 */ uint64 ra;
 	/*  48 */ uint64 sp;
 	/*  56 */ uint64 gp;
