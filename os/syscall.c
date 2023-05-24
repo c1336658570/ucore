@@ -30,7 +30,8 @@ uint64 sys_sched_yield()
 
 /// tz 参数表示时区，这里我们忽略这个参数
 uint64 sys_gettimeofday(TimeVal *val, int _tz)
-{
+{	
+	////get_cycle()函数可以取得当前 mtime 计数器的值；
 	//把 get_cycle 得到的 cycle 数换算了秒和微妙，填入对应结构。
 	uint64 cycle = get_cycle();
 	val->sec = cycle / CPU_FREQ;
