@@ -16,6 +16,7 @@ int finished()
 }
 
 // Get user progs' infomation through pre-defined symbol in `link_app.S`
+//通过 `link_app.S` 中的预定义符号获取用户程序信息
 void loader_init()
 {
 	if ((uint64)ekernel >= BASE_ADDRESS) {
@@ -48,7 +49,8 @@ int run_all_app()
 		load_app(i, app_info_ptr);	//根据是第几个用户程序，将其加载到对应位置
 		uint64 entry = BASE_ADDRESS + i * MAX_APP_SIZE;	//每一个应用程序的入口地址
 		tracef("load app %d at %p", i, entry);
-		trapframe->epc = entry;	//设置程序入口地址到进程p的trapframe->epc
+		//在调用scheduler后，然后会调用switch，从switch中返回后会跳到usertrapret，在该函数会用到epc，该函数会设置epc，然后调用userret，跳到epc所指向的地址开始执行
+		trapframe->epc = entry;	//设置程序入口地址到进程p的trapframe->epc	
 		trapframe->sp = (uint64)p->ustack + USER_STACK_SIZE;	//设置应用程序用户栈地址到进程p的trapframe->sp
 		p->state = RUNNABLE;	//将进程设置为可运行状态
 		/*

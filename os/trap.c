@@ -27,6 +27,7 @@ void set_kerneltrap(void)
 }
 
 // set up to take exceptions and traps while in the kernel.
+//在内核中设置为接受异常和陷阱。
 void trap_init(void)
 {
 	set_kerneltrap();
@@ -39,10 +40,10 @@ void unknown_trap()
 	exit(-1);
 }
 
-//
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
-//
+//处理来自用户空间的中断、异常或系统调用。
+//从 trampoline.S 调用
 void usertrap()
 {
 	set_kerneltrap();
@@ -93,9 +94,8 @@ void usertrap()
 	usertrapret();
 }
 
-//
 // return to user space
-//
+//返回用户空间
 void usertrapret()
 {
 	set_usertrap();		//设置为接受异常和陷阱
@@ -106,17 +106,19 @@ void usertrapret()
 	trapframe->kernel_trap = (uint64)usertrap;	//用户出现异常中断调用该函数
 	trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
 
-	w_sepc(trapframe->epc); //设置了sepc寄存器的值,回用户空间。
+	w_sepc(trapframe->epc); //设置了sepc寄存器的值，回用户空间，调用完userret后就会执行epc所保存的那个地址的代码。
 	// set up the registers that trampoline.S's sret will use
 	// to get to user space.
 
-	// set S Previous Privilege mode to User.
+	// set S Previous Privilege mode to User.	//将 S Previous 权限模式设置为用户
 	uint64 x = r_sstatus();
-	x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
-	x |= SSTATUS_SPIE; // enable interrupts in user mode
+	x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode	//将用户模式的 SPP 清零
+	x |= SSTATUS_SPIE; // enable interrupts in user mode	//在用户模式下启用中断
 	w_sstatus(x);
 
 	// tell trampoline.S the user page table to switch to.
 	// uint64 satp = MAKE_SATP(p->pagetable);
+	//告诉 trampoline.S 要切换到的用户页表。
+	//uint64 satp = MAKE_SATP(p->pagetable);
 	userret((uint64)trapframe);	//定义在trampoline.S中 恢复 trapframe 结构体之中的保存的U态执行流数据。
 }

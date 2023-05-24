@@ -72,6 +72,7 @@ found:
 	memset(&p->context, 0, sizeof(p->context));
 	memset(p->trapframe, 0, PAGE_SIZE);
 	memset((void *)p->kstack, 0, PAGE_SIZE);	//清空栈空间
+	//在scheduler函数中，会调用switch，在switch会使用ra和sp，从switch返回后会跳转到ra所保存的地址开始执行，栈会切换为sp所指向的栈
 	p->context.ra = (uint64)usertrapret;	//设置进程第一次运行入口地址是usertrapret。得进程能够从内核的S态返回U态并执行自己的代码。
 	p->context.sp = p->kstack + PAGE_SIZE;	//因为切换进程是在内核态切换的，所以sp设置为进程内核栈顶
 	return p;
@@ -114,7 +115,7 @@ void sched(void)
 	struct proc *p = curr_proc();
 	if (p->state == RUNNING)
 		panic("sched running");
-	swtch(&p->context, &idle.context);
+	swtch(&p->context, &idle.context);	//从用户进程切换到操作系统内核执行
 }
 
 // 放弃 CPU 进行下一轮调度。
