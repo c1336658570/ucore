@@ -25,12 +25,13 @@ void loader_init()
 
 pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p)
 {
-	// pg 代表根页表地址，根页表大小恰好为 1 个页
+	//pg代表根页表地址，根页表大小恰好为1个页
 	//创建一个空的用户页表。
-	pagetable_t pg = uvmcreate();
+	pagetable_t pg = uvmcreate();	
 	// 映射 trapframe（中断帧），注意这里的权限!
-	if (mappages(pg, TRAPFRAME, PGSIZE, (uint64)p->trapframe,
-		     PTE_R | PTE_W) < 0) {
+	//将虚拟地址TRAPFRAME，大小为PGSIZE的地址映射到物理地址p->trapframe，大小为PGSIZE
+	if (mappages(pg, TRAPFRAME, PGSIZE, (uint64)p->trapframe, 
+			PTE_R | PTE_W) < 0) {
 		panic("mappages fail");
 	}
 
@@ -51,23 +52,25 @@ pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p)
 	uint64 length = end - start;	//获取要映射的长度
 	//针对从虚拟地址 BASE_ADDRESS 开始的内存区域，创建对应的页表项（PTE），
 	//使其映射到从物理地址 start 开始的内存区域。
-	if (mappages(pg, BASE_ADDRESS, length, start,
-		     PTE_U | PTE_R | PTE_W | PTE_X) != 0) {	
+	//将从BASE_ADDRESS开始的长度为length的虚拟地址映射到start，长度为length
+	if (mappages(pg, BASE_ADDRESS, length, start, 
+			PTE_U | PTE_R | PTE_W | PTE_X) != 0) {	
 		panic("mappages fail");
 	}
-	p->pagetable = pg;
+	p->pagetable = pg;	//让进程的pagetable和pg指向同一块内存
 	// 接下来 map user stack， 注意这里的虚存选择，想想为何要这样？
-	uint64 ustack_bottom_vaddr = BASE_ADDRESS + length + PAGE_SIZE;
+	uint64 ustack_bottom_vaddr = BASE_ADDRESS + length + PAGE_SIZE;	//ustack_bottom_vaddr指用户栈的底部虚拟地址
 	if (USTACK_SIZE != PAGE_SIZE) {
 		// Fix in ch5
 		panic("Unsupported");
 	}
 	//用户栈映射。针对从虚拟地址 ustack_bottom_vaddr 开始的内存区域，创建对应的页表项（PTE），
 	//使其映射到从物理地址 kalloc() 开始的内存区域。
+	//将ustack_bottom_vaddr开始大小为USTACK_SIZE的虚拟地址映射到kalloc分配的4k的内存
 	mappages(pg, ustack_bottom_vaddr, USTACK_SIZE, (uint64)kalloc(),
 		 PTE_U | PTE_R | PTE_W | PTE_X);
-	p->ustack = ustack_bottom_vaddr;	//修改栈指针
-	// 设置 trapframe
+	p->ustack = ustack_bottom_vaddr;	//修改用户栈底部指针
+	// 设置trapframe
 	p->trapframe->epc = BASE_ADDRESS;	//修改指令指针
 	p->trapframe->sp = p->ustack + USTACK_SIZE;	//修改栈顶指针
 	 // exit 的时候会 unmap 页表中 [BASE_ADDRESS, max_page * PAGE_SIZE) 的页

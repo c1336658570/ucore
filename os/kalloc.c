@@ -3,7 +3,7 @@
 #include "riscv.h"
 
 extern char ekernel[];
-
+//内存进行链式管理
 struct linklist {
 	struct linklist *next;
 };
@@ -20,7 +20,14 @@ void freerange(void *pa_start, void *pa_end)
 		kfree(p);
 }
 
+//我们在main函数中会执行kinit，它会初始化从ekernel到PHYSTOP的所有物理地址作为空闲的物理地址。
+//freerange中调用的kfree函数以页为单位向对应内存中填入垃圾数据（全1），
+//并把初始化好的一个页作为新的空闲listnode插入到链表首部。
+
+//qemu已经规定了内核需要管理的内存范围，可以参考这里，具体来说，需要软件管理的内存为[0x80000000, 0x88000000)，
+//其中，rustsbi使用了[0x80000000, 0x80200000)的范围，其余都是内核使用。
 //ekernel为链接脚本定义的内核代码结束地址，PHYSTOP = 0x88000000
+//ekernel-PHYSTOP都是空闲空间，用于给用户程序进行动态内存分配
 void kinit()	//初始化整个页
 {
 	freerange(ekernel, (void *)PHYSTOP);
