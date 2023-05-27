@@ -62,7 +62,7 @@ uservec:
 
         csrr t0, sscratch
         sd t0, 112(a0)
-        csrr t1, sepc           #epc保存的是发生异常或中断前的指令地址。
+        csrr t1, sepc           #sepc保存的是发生异常或中断前的指令地址。
         sd t1, 24(a0)           #将其保存到tramframe的epc
         ld sp, 8(a0)
         ld tp, 32(a0)
@@ -91,7 +91,10 @@ userret:
 
         # restore all but a0 from TRAPFRAME
         ld ra, 40(a0)
-        ld sp, 48(a0)
+        ##切换栈，p->trapframe->sp = p->ustack + USTACK_SIZE在run_all_app中通过调用bin_loader
+        #然后在bin_loader中将p->trapframe->sp设置为p->ustack + USTACK_SIZE
+        #通过ld sp, 48(a0)就会切换将sp设置为p->ustack + USTACK_SIZE
+        ld sp, 48(a0)           
         ld gp, 56(a0)
         ld tp, 64(a0)
         ld t0, 72(a0)
@@ -126,4 +129,4 @@ userret:
 
         # return to user mode and user pc.
         # usertrapret() set up sstatus and sepc.
-        sret
+        sret    #sret会将pc设置为sepc，sepc会在uservec保存，发生例外的指令的PC被存入sepc，且PC被设置为stvec。

@@ -69,8 +69,8 @@ found:
 	memset(&p->context, 0, sizeof(p->context));
 	memset((void *)p->kstack, 0, KSTACK_SIZE);
 	memset((void *)p->trapframe, 0, TRAP_PAGE_SIZE);
-	p->context.ra = (uint64)usertrapret;
-	p->context.sp = p->kstack + KSTACK_SIZE;
+	p->context.ra = (uint64)usertrapret;	//设置ra，在scheduler中调用swtch会用到，或在sched中调用swtch会用到
+	p->context.sp = p->kstack + KSTACK_SIZE;	//设置sp，在scheduler中调用swtch会用到，或在sched中调用swtch会用到
 	return p;
 }
 

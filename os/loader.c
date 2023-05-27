@@ -71,7 +71,7 @@ pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p)
 		 PTE_U | PTE_R | PTE_W | PTE_X);
 	p->ustack = ustack_bottom_vaddr;	//修改用户栈底部指针
 	// 设置trapframe
-	p->trapframe->epc = BASE_ADDRESS;	//修改指令指针
+	p->trapframe->epc = BASE_ADDRESS;	//修改epc指针，当
 	p->trapframe->sp = p->ustack + USTACK_SIZE;	//修改栈顶指针
 	 // exit 的时候会 uvmunmap 页表中 [BASE_ADDRESS, max_page * PAGE_SIZE) 的页
 	p->max_page = PGROUNDUP(p->ustack + USTACK_SIZE - 1) / PAGE_SIZE;	//最大页号

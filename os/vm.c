@@ -270,6 +270,7 @@ void freewalk(pagetable_t pagetable)
 		} else if (pte & PTE_V) { //有效且RWX都不为1就panic
 			panic("freewalk: leaf");
 		}
+		//当PTE_V = 0，即不指向下一级PTE或物理页帧，就不会进入if else，而是直接进入下一次循环
 	}
 	kfree((void *)pagetable);
 }
@@ -423,7 +424,7 @@ uint64 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
 		if (mappages(pagetable, a, PGSIZE, (uint64)mem,
 			     PTE_R | PTE_U | xperm) != 0) {	//虚拟地址从a开始PGSIZE个字节映射到mem，映射失败就释放内存，并删除页表项。
 			kfree(mem);
-			uvmdealloc(pagetable, a, oldsz);	//删除从oldsz到a的这一段内存映射，并释放内存
+			uvmdealloc(pagetable, a, oldsz);	//删除从oldsz到a的这一段内存映射，并释放物理内存
 			return 0;
 		}
 	}
@@ -434,7 +435,7 @@ uint64 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
 // newsz.  oldsz and newsz need not be page-aligned, nor does newsz
 // need to be less than oldsz.  oldsz can be larger than the actual
 // process size.  Returns the new process size.
-//回收内存页，以将进程的大小从旧尺寸 oldsz 调整为新尺寸 newsz。
+//回收内存页，oldsz和newsz不是内存大小，而是内存的虚拟地址
 //旧尺寸和新尺寸不需要对齐到页边界，newsz 必需要小于 oldsz。oldsz 可以大于实际进程大小。
 //函数返回新的进程大小。
 uint64 uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)

@@ -101,11 +101,11 @@ void usertrapret()
 	struct trapframe *trapframe = curr_proc()->trapframe;
 	trapframe->kernel_satp = r_satp(); // kernel page table	//内核页表
 	trapframe->kernel_sp =
-		curr_proc()->kstack + KSTACK_SIZE; // process's kernel stack
+	curr_proc()->kstack + KSTACK_SIZE; // process's kernel stack
 	trapframe->kernel_trap = (uint64)usertrap;
 	trapframe->kernel_hartid = r_tp(); // unuesd
-
-	w_sepc(trapframe->epc);
+	//将trapframe->epc写入sepc，然后调用trampoline.S中的userret，userret最后一条指令sret会将sepc设置为pc
+	w_sepc(trapframe->epc);	
 	// set up the registers that trampoline.S's sret will use
 	// to get to user space.
 
@@ -117,7 +117,7 @@ void usertrapret()
 
 	// tell trampoline.S the user page table to switch to.
 	//告诉 trampoline.S 要切换到的用户页表。
-	uint64 satp = MAKE_SATP(curr_proc()->pagetable);
+	uint64 satp = MAKE_SATP(curr_proc()->pagetable);	//页表基地址，用于切换页表
 	uint64 fn = TRAMPOLINE + (userret - trampoline);	//函数入口地址
 	tracef("return to user @ %p", trapframe->epc);
 	((void (*)(uint64, uint64))fn)(TRAPFRAME, satp);	//将fn强转为一个指向函数的指针并进行调用
