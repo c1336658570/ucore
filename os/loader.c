@@ -40,10 +40,10 @@ pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p)
 
 	// riscv 指令有对齐要求，同时,如果不对齐直接映射的话会把部分内核地址映射到用户态，很不安全
 	// ch5我们就不需要这个限制了。
-	if (!PGALIGNED(start)) {	//判断低12位是否为0，不是0就panic
+	if (!PGALIGNED(start)) {	//判断低12位是否为0（4k对齐），不是0就panic
 		panic("user program not aligned, start = %p", start);
 	}
-	if (!PGALIGNED(end)) {
+	if (!PGALIGNED(end)) {		//判断是否4k对齐
 		// Fix in ch5
 		warnf("Some kernel data maybe mapped to user, start = %p, end = %p",
 		      start, end);
@@ -73,8 +73,9 @@ pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p)
 	// 设置trapframe
 	p->trapframe->epc = BASE_ADDRESS;	//修改指令指针
 	p->trapframe->sp = p->ustack + USTACK_SIZE;	//修改栈顶指针
-	 // exit 的时候会 unmap 页表中 [BASE_ADDRESS, max_page * PAGE_SIZE) 的页
+	 // exit 的时候会 uvmunmap 页表中 [BASE_ADDRESS, max_page * PAGE_SIZE) 的页
 	p->max_page = PGROUNDUP(p->ustack + USTACK_SIZE - 1) / PAGE_SIZE;	//最大页号
+	//此时堆还未分配内存，所以堆底bottom和堆顶brk指向同一个位置
 	p->program_brk = p->ustack + USTACK_SIZE;
   p->heap_bottom = p->ustack + USTACK_SIZE;
 	return pg;

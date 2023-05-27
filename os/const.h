@@ -15,6 +15,7 @@ enum {
 // for use by the kernel and user pages
 // from physical address 0x80000000 to PHYSTOP.
 
+//0x80000000-0x8020000被rustsbi使用了
 //内核希望有一定数量的 RAM 用于内核和用户页，从物理地址0x80000000到PHYSTOP。
 #define KERNBASE 0x80200000L
 #define PHYSTOP (0x80000000 + 128 * 1024 * 1024) // we have 128M memroy  有128M

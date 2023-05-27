@@ -11,12 +11,13 @@ uint64 sys_write(int fd, uint64 va, uint len)
 	debugf("sys_write fd = %d va = %x, len = %d", fd, va, len);
 	if (fd != STDOUT)
 		return -1;
-	struct proc *p = curr_proc();
-	char str[MAX_STR_LEN];
+	struct proc *p = curr_proc();	//获取当前执行进程
+	char str[MAX_STR_LEN];	//分配内存
+	//把虚拟地址va开始的长度为len和MAX_STR_LEN之中的最大值的字符串拷贝到str中
 	int size = copyinstr(p->pagetable, str, va, MIN(len, MAX_STR_LEN));
 	debugf("size = %d", size);
 	for (int i = 0; i < size; ++i) {
-		console_putchar(str[i]);
+		console_putchar(str[i]);	//输出
 	}
 	return size;
 }
@@ -34,8 +35,7 @@ uint64 sys_sched_yield()
 }
 
 uint64 sys_gettimeofday(
-	TimeVal *val,
-	int _tz) // TODO: implement sys_gettimeofday in pagetable. (VA to PA)
+	TimeVal *val, int _tz) // TODO: implement sys_gettimeofday in pagetable. (VA to PA)
 {
 	// YOUR CODE
 	val->sec = 0;

@@ -65,7 +65,7 @@ found:
 	p->ustack = 0;
 	p->max_page = 0;
 	p->program_brk = 0;
-        p->heap_bottom = 0;
+  p->heap_bottom = 0;
 	memset(&p->context, 0, sizeof(p->context));
 	memset((void *)p->kstack, 0, KSTACK_SIZE);
 	memset((void *)p->trapframe, 0, TRAP_PAGE_SIZE);
@@ -139,20 +139,28 @@ void exit(int code)
 // Return 0 on succness, -1 on failure.
 //将用户内存增加或缩小 n 字节。
 //成功返回 0，失败返回 -1。
+/*
+调整进程的堆大小，使其增加或减少n个字节。具体实现是通过修改进程的program_brk成员变量来实现，
+程序将计算出新堆底的地址new_brk，如果new_brk小于当前堆底地址则返回-1表示错误，
+否则根据n的值调用uvmalloc来分配内存或uvmdealloc回收内存。
+最后将新的program_brk值存回进程结构体中。函数返回0表示成功。
+*/
 int growproc(int n)
 {
 	uint64 program_brk;
-	struct proc *p = curr_proc();
+	struct proc *p = curr_proc();	//获取当前进程
 	program_brk = p->program_brk;
-	int new_brk = program_brk + n - p->heap_bottom;
+	//brk指向堆顶，bottom指向堆底，通过program_brk+n-heap_bottom判断内存增加n或减少n后，
+	//堆顶指针是否在堆底指针之上
+	int new_brk = program_brk + n - p->heap_bottom;	
 	if(new_brk < 0){
 		return -1;
 	}
-	if(n > 0){	//通过调用uvmalloc分配内存
+	if(n > 0){	//通过调用uvmalloc分配内存，对堆进行扩容
 		if((program_brk = uvmalloc(p->pagetable, program_brk, program_brk + n, PTE_W)) == 0) {
 			return -1;
 		}
-	} else if(n < 0){	//通过uvmdealloc回收内存
+	} else if(n < 0){	//通过uvmdealloc回收内存，对堆进行回收
 		program_brk = uvmdealloc(p->pagetable, program_brk, program_brk + n);
 	}
 	p->program_brk = program_brk;

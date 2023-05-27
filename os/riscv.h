@@ -305,7 +305,7 @@ static inline void sfence_vma()
 #define PTE_W (1L << 2)	//写
 #define PTE_X (1L << 3)	//执行
 #define PTE_U (1L << 4) // 1 -> user can access 用户可以访问
-a
+
 // shift a physical address to the right place for a PTE.
 #define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)	//页表的物理地址转成PTE（页表项）
 //右移12位相当于将低12位清零，也就是按照4K对齐，也等于清除页内偏移地址，让其变为一个页帧的首地址

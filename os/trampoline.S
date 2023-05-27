@@ -62,8 +62,8 @@ uservec:
 
         csrr t0, sscratch
         sd t0, 112(a0)
-        csrr t1, sepc
-        sd t1, 24(a0)
+        csrr t1, sepc           #epc保存的是发生异常或中断前的指令地址。
+        sd t1, 24(a0)           #将其保存到tramframe的epc
         ld sp, 8(a0)
         ld tp, 32(a0)
         ld t0, 16(a0)

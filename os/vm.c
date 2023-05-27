@@ -414,14 +414,16 @@ uint64 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
 	for (a = oldsz; a < newsz; a += PGSIZE) {
 		mem = kalloc();	//分配页
 		if (mem == 0) {	//分配失败
-			uvmdealloc(pagetable, a, oldsz);	//将之前分配的释放掉，第一次循环就分配失败进入该函数什么都不做
+			//将之前分配的释放掉，第一次循环就分配失败进入该函数什么都不做，因为a=oldsz，调用uvmdealloc会直接返回
+			//后续如果进入这里的话，就会将从oldsz到a的一段内存删除
+			uvmdealloc(pagetable, a, oldsz);	
 			return 0;
 		}
 		memset(mem, 0, PGSIZE);	//页初始化为0
 		if (mappages(pagetable, a, PGSIZE, (uint64)mem,
 			     PTE_R | PTE_U | xperm) != 0) {	//虚拟地址从a开始PGSIZE个字节映射到mem，映射失败就释放内存，并删除页表项。
 			kfree(mem);
-			uvmdealloc(pagetable, a, oldsz);
+			uvmdealloc(pagetable, a, oldsz);	//删除从oldsz到a的这一段内存映射，并释放内存
 			return 0;
 		}
 	}
