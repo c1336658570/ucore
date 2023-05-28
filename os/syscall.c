@@ -29,6 +29,7 @@ uint64 sys_read(int fd, uint64 va, uint64 len)
 	struct proc *p = curr_proc();
 	char str[MAX_STR_LEN];
 	for (int i = 0; i < len; ++i) {
+		//consgetc()会阻塞式的等待读取一个 char
 		int c = consgetc();
 		str[i] = c;
 	}
@@ -106,12 +107,12 @@ uint64 sys_set_priority(long long prio){
 
 uint64 sys_sbrk(int n)
 {
-        uint64 addr;
-        struct proc *p = curr_proc();
-        addr = p->program_brk;
-        if(growproc(n) < 0)
-                return -1;
-        return addr;
+	uint64 addr;
+	struct proc *p = curr_proc();
+	addr = p->program_brk;
+	if(growproc(n) < 0)
+		return -1;
+	return addr;
 }
 
 extern char trap_page[];

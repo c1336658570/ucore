@@ -152,13 +152,15 @@ void yield()
 
 // Free a process's page table, and free the
 // physical memory it refers to.
+//释放一个进程的页表，并释放它所引用的物理内存。
 void freepagetable(pagetable_t pagetable, uint64 max_page)
 {
-	uvmunmap(pagetable, TRAMPOLINE, 1, 0);
-	uvmunmap(pagetable, TRAPFRAME, 1, 0);
-	uvmfree(pagetable, max_page);
+	uvmunmap(pagetable, TRAMPOLINE, 1, 0);	//删除从TRAMPOLINE开始1页的虚拟地址到物理地址的映射，但是不释放内存
+	uvmunmap(pagetable, TRAPFRAME, 1, 0);		//删除从TRAPFRAME开始1页的虚拟地址到物理地址的映射，但是不释放内存
+	uvmfree(pagetable, max_page);	//删除从虚拟地址0开始，共max_page个页面的虚拟地址到物理地址的映射，并释放页帧的物理内存，也也释放了页表的内存
 }
 
+//清除进程所占用的资源，让进程回到执行完函数proc_init的状态，会清除TRAMPOLINE和TRAPFRAME的映射
 void freeproc(struct proc *p)
 {
 	if (p->pagetable)
@@ -241,7 +243,7 @@ int wait(int pid, int *code)
 				}
 			}
 		}
-		if (!havekids) {
+		if (!havekids) {	//没有子进程
 			return -1;
 		}
 		//遍历一遍未找到ZOMBIE状态的子进程，就将当前进程添加到就绪队列，然后等待被调度
@@ -257,12 +259,13 @@ void exit(int code)
 	struct proc *p = curr_proc();
 	p->exit_code = code;
 	debugf("proc %d exit with %d\n", p->pid, code);
-	freeproc(p);
+	freeproc(p);	//释放进程的占有所有资源，让进程回到刚执行完proc_init的状态（UNUSED）
 	if (p->parent != NULL) {
 		// Parent should `wait`
 		p->state = ZOMBIE;
 	}
 	// Set the `parent` of all children to NULL
+	//将所有孩子的 `parent` 设置为 NULL
 	struct proc *np;
 	for (np = pool; np < &pool[NPROC]; np++) {
 		if (np->parent == p) {
@@ -274,22 +277,24 @@ void exit(int code)
 
 // Grow or shrink user memory by n bytes.
 // Return 0 on succness, -1 on failure.
+//将用户内存增加或缩小 n 字节。
+//成功返回 0，失败返回 -1。
 int growproc(int n)
 {
-        uint64 program_brk;
-        struct proc *p = curr_proc();
-        program_brk = p->program_brk;
-        int new_brk = program_brk + n - p->heap_bottom;
-        if(new_brk < 0){
-                return -1;
-        }
-        if(n > 0){
-                if((program_brk = uvmalloc(p->pagetable, program_brk, program_brk + n, PTE_W)) == 0) {
-                        return -1;
-                }
-        } else if(n < 0){
-                program_brk = uvmdealloc(p->pagetable, program_brk, program_brk + n);
-        }
-        p->program_brk = program_brk;
-        return 0;
+	uint64 program_brk;
+	struct proc *p = curr_proc();
+	program_brk = p->program_brk;
+	int new_brk = program_brk + n - p->heap_bottom;
+	if(new_brk < 0){
+		return -1;
+	}
+	if(n > 0){
+		if((program_brk = uvmalloc(p->pagetable, program_brk, program_brk + n, PTE_W)) == 0) {
+			return -1;
+		}
+	} else if(n < 0){
+		program_brk = uvmdealloc(p->pagetable, program_brk, program_brk + n);
+	}
+	p->program_brk = program_brk;
+	return 0;
 }

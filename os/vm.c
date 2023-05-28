@@ -137,6 +137,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 // Remove npages of mappings starting from va. va must be
 // page-aligned. The mappings must exist.
 // Optionally free the physical memory.
+//从地址va开始删除npages个映射。va必须是页对齐的。可选择释放物理内存。
 void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 {
 	uint64 a;
@@ -184,6 +185,7 @@ pagetable_t uvmcreate(uint64 trapframe)
 
 // Recursively free page-table pages.
 // All leaf mappings must already have been removed.
+//递归释放页表页。所有叶映射必须已经被删除。
 void freewalk(pagetable_t pagetable)
 {
 	// there are 2^9 = 512 PTEs in a page table.
@@ -209,8 +211,8 @@ void freewalk(pagetable_t pagetable)
 void uvmfree(pagetable_t pagetable, uint64 max_page)
 {
 	if (max_page > 0)
-		uvmunmap(pagetable, 0, max_page, 1);
-	freewalk(pagetable);
+		uvmunmap(pagetable, 0, max_page, 1);	//清除从0开始共max_page的映射，并释放物理页帧的内存
+	freewalk(pagetable);	//递归清除页表
 }
 
 // Used in fork.
@@ -337,29 +339,30 @@ int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 
 // Allocate PTEs and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
+//为了将进程从oldsz扩展到newsz而分配PTE和物理内存，newsz不需要对齐到页面。如果发生错误返回新的大小或0。
 uint64 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
 {
-        char *mem;
-        uint64 a;
+	char *mem;
+	uint64 a;
 
-        if(newsz < oldsz)
-                return oldsz;
+	if(newsz < oldsz)
+		return oldsz;
 
-        oldsz = PGROUNDUP(oldsz);
-        for(a = oldsz; a < newsz; a += PGSIZE){
-                mem = kalloc();
-                if(mem == 0){
-                        uvmdealloc(pagetable, a, oldsz);
-                        return 0;
-                }
-                memset(mem, 0, PGSIZE);
-                if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R|PTE_U|xperm) != 0){
-                        kfree(mem);
-                        uvmdealloc(pagetable, a, oldsz);
-                        return 0;
-                }
-        }
-        return newsz;
+	oldsz = PGROUNDUP(oldsz);
+	for(a = oldsz; a < newsz; a += PGSIZE){
+		mem = kalloc();
+		if(mem == 0){
+			uvmdealloc(pagetable, a, oldsz);
+			return 0;
+		}
+		memset(mem, 0, PGSIZE);
+		if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R|PTE_U|xperm) != 0){
+			kfree(mem);
+			uvmdealloc(pagetable, a, oldsz);
+			return 0;
+		}
+	}
+	return newsz;
 }
 
 // Deallocate user pages to bring the process size from oldsz to
@@ -368,14 +371,14 @@ uint64 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
 // process size.  Returns the new process size.
 uint64 uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 {
-        if(newsz >= oldsz)
-                return oldsz;
+	if(newsz >= oldsz)
+		return oldsz;
 
-        if(PGROUNDUP(newsz) < PGROUNDUP(oldsz)){
-                int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
-                uvmunmap(pagetable, PGROUNDUP(newsz), npages, 1);
-        }
+	if(PGROUNDUP(newsz) < PGROUNDUP(oldsz)){
+		int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
+		uvmunmap(pagetable, PGROUNDUP(newsz), npages, 1);
+	}
 
-        return newsz;
+	return newsz;
 }
 
