@@ -40,19 +40,31 @@ int bin_loader(uint64 start, uint64 end, struct proc *p)
 	if (p == NULL || p->state == UNUSED)
 		panic("...");
 	void *page;
-	uint64 pa_start = PGROUNDDOWN(start);
-	uint64 pa_end = PGROUNDUP(end);
-	uint64 length = pa_end - pa_start;
-	uint64 va_start = BASE_ADDRESS;
-	uint64 va_end = BASE_ADDRESS + length;
+	// 注意现在我们不要求对其了，代码的核心逻辑还是把 [start, end)
+	// 映射到虚拟内存的 [BASE_ADDRESS, BASE_ADDRESS + length)
+	uint64 pa_start = PGROUNDDOWN(start);	//清空低12位
+	uint64 pa_end = PGROUNDUP(end);	//加4096-1，然后清空低12位，向上对齐到页面边界
+	uint64 length = pa_end - pa_start;	//需要加载并映射的程序长度
+	uint64 va_start = BASE_ADDRESS;			//虚拟起始地址
+	uint64 va_end = BASE_ADDRESS + length;	//虚拟结束地址
+	/*
+	循环：对于.bin 的每一页，都申请一个新页并进行内容拷贝，最后建立这一页的映射。
+	为什么要拷贝呢？想想lab4我们是怎么干的，直接把虚存和物理内存映射就好了，
+	根本没有拷贝。那么，拷贝是为了什么呢？其实，按照lab4的做法，
+	程序运行之后就会修改仅有一份的程序”原像”，你会发现，lab4的程序都是一次性的，
+	如果第二次执行，会发现.data 和.bss段数据都被上一次执行改掉了，不是初始化的状态。
+	但是lab4的时候，每个程序最多执行一次，所以这么做是可以的。但在lab5所有程序都可能被无数次的执行，
+	我们就必须对“程序原像”做保护，在“原像”的拷贝上运行程序了。
+	*/
 	for (uint64 va = va_start, pa = pa_start; pa < pa_end;
 	     va += PGSIZE, pa += PGSIZE) {
-		page = kalloc();
+		page = kalloc();	//分配页面
 		if (page == 0) {
 			panic("...");
 		}
-		memmove(page, (const void *)pa, PGSIZE);
-		if (pa < start) {
+		memmove(page, (const void *)pa, PGSIZE);	//将pa所指内存复制到新分配的页
+		//在第一次进入循环时pa可能小于start，因为第一次循环pa是等于pa_start的，而pa_start是将start向下对齐到页面边界
+		if (pa < start) {	
 			memset(page, 0, start - va);
 		} else if (pa + PAGE_SIZE > end) {
 			memset(page + (end - pa), 0, PAGE_SIZE - (end - pa));

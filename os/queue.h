@@ -5,7 +5,7 @@
 // TODO: change the queue to a priority queue sorted by priority
 
 struct queue {
-	int data[QUEUE_SIZE];
+	int data[QUEUE_SIZE];		
 	int front;
 	int tail;
 	int empty;

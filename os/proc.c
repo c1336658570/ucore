@@ -36,7 +36,7 @@ void proc_init()
 	idle.kstack = (uint64)boot_stack_top;
 	idle.pid = IDLE_PID;
 	current_proc = &idle;
-	init_queue(&task_queue);
+	init_queue(&task_queue);	//初始化；队列，如队头队尾指针，队列是否为空
 }
 
 int allocpid()
@@ -47,18 +47,18 @@ int allocpid()
 
 struct proc *fetch_task()
 {
-	int index = pop_queue(&task_queue);
+	int index = pop_queue(&task_queue);	//取出偏移
 	if (index < 0) {
 		debugf("No task to fetch\n");
 		return NULL;
 	}
 	debugf("fetch task %d(pid=%d) to task queue\n", index, pool[index].pid);
-	return pool + index;
+	return pool + index;	//返回pcb的地址
 }
 
 void add_task(struct proc *p)
 {
-	push_queue(&task_queue, p - pool);
+	push_queue(&task_queue, p - pool);	//p-pool可以获得当前pcb相对于第1个pcb之间相差了多少个pcb
 	debugf("add task %d(pid=%d) to task queue\n", p - pool, p->pid);
 }
 
@@ -83,9 +83,9 @@ found:
 	p->max_page = 0;
 	p->parent = NULL;
 	p->exit_code = 0;
-	p->pagetable = uvmcreate((uint64)p->trapframe);
+	p->pagetable = uvmcreate((uint64)p->trapframe);	//创建一个页表，在创建页表的同时会将trampoline和trapframe映射
 	p->program_brk = 0;
-        p->heap_bottom = 0;
+  p->heap_bottom = 0;
 	memset(&p->context, 0, sizeof(p->context));
 	memset((void *)p->kstack, 0, KSTACK_SIZE);
 	memset((void *)p->trapframe, 0, TRAP_PAGE_SIZE);
@@ -116,7 +116,7 @@ void scheduler()
 		if(has_proc == 0) {
 			panic("all app are over!\n");
 		}*/
-		p = fetch_task();
+		p = fetch_task();	//通过调用fetch_task可以从队列中取出队头pcb的地址，然后将这个地址给p
 		if (p == NULL) {
 			panic("all app are over!\n");
 		}
@@ -171,12 +171,13 @@ int fork()
 {
 	struct proc *np;
 	struct proc *p = curr_proc();
-	//分配进程。
+	//分配一个新的进程PCB，注意页表的初始化也在allocproc中完成了
 	if ((np = allocproc()) == 0) {
 		panic("allocproc\n");
 	}
 	// Copy user memory from parent to child.
 	//将用户内存从父母复制到孩子。
+	//把父进程页表对应的页先拷贝一份，然后建立一个对这些新页有同样映射的页表。如果失败会返回-1
 	if (uvmcopy(p->pagetable, np->pagetable, p->max_page) < 0) {
 		panic("uvmcopy\n");
 	}
@@ -186,51 +187,56 @@ int fork()
 	*(np->trapframe) = *(p->trapframe);
 	// Cause fork to return 0 in the child.
 	//导致 fork 在子进程中返回 0。
-	np->trapframe->a0 = 0;
+	np->trapframe->a0 = 0;	//设置子进程返回值为0
 	np->parent = p;
 	np->state = RUNNABLE;
-	add_task(np);
-	return np->pid;
+	add_task(np);	//将np添加到就绪队列
+	return np->pid;	//返回子进程的pid
 }
 
-//由于 trapframe 和 trampoline 是可以复用的（每个进程都一样），所以我们并不会把他们 unmap。
-//而对于用户真正的数据，就会删掉映射的同时把物理页面也 free 掉。
+//由于trapframe和trampoline是可以复用的（每个进程都一样），所以我们并不会把他们unmap。
+//而对于用户真正的数据，就会删掉映射的同时把物理页面也free掉。
 //传入待执行测例的文件名。之后会找到文件名对应的id。如果存在对应文件，就会执行内存的释放。
+//exec要干的事情和bin_loader是很相似的。事实上，
+//不同点在于，exec 需要先清理并回收掉当前进程占用的资源，目前只有内存。
 int exec(char *name)
 {
 	int id = get_id_by_name(name);	//通过name得到是第几个可执行程序
 	if (id < 0)
 		return -1;
 	struct proc *p = curr_proc();
-	uvmunmap(p->pagetable, 0, p->max_page, 1);	////删除从p->pagetable开始的p->max_page页映射。并释放物理内存。
+	uvmunmap(p->pagetable, 0, p->max_page, 1);	//删除从p->pagetable开始的p->max_page页映射。并释放物理内存。不会清除trapframe和trampoline的映射，因为它们在虚拟地址的最高端
 	p->max_page = 0;
 	loader(id, p);	//加载id所对应的程序到该进程
 	return 0;
 }
 
-//pid 表示要等待结束的子进程的进程 ID，如果为 0或者-1 的话表示等待任意一个子进程结束；
-//status 表示保存子进程返回值的地址，如果这个地址为 0 的话表示不必保存。
-//返回值：如果出现了错误则返回 -1；否则返回结束的子进程的进程 ID。
+//pid 表示要等待结束的子进程的进程 ID，如果为0或者-1的话表示等待任意一个子进程结束；
+//status 表示保存子进程返回值的地址，如果这个地址为0的话表示不必保存。
+//返回值：如果出现了错误则返回 -1；否则返回结束的子进程的进程ID。
 //如果子进程存在且尚未完成，该系统调用阻塞等待。
-//pid 非法或者指定的不是该进程的子进程或传入的地址 status 不为 0 但是不合法均会导致错误。
+//pid非法或者指定的不是该进程的子进程或传入的地址status不为0但是不合法均会导致错误。
+//wait 的思路就是遍历进程数组，看有没有和pid匹配的进程。如果有且已经结束(ZOMBIE态），
+//按要求返回。如果指定进程不存在或者不是当前进程子进程，返回错误。
+//如果子进程存在但未结束，调用 sched 切换到其他进程来等待子进程结束。
 int wait(int pid, int *code)
 {
 	struct proc *np;
 	int havekids;
-	struct proc *p = curr_proc();
+	struct proc *p = curr_proc();	//获取当前正在执行的进程的PCB
 
 	for (;;) {
 		// Scan through table looking for exited children.
 		havekids = 0;
-		for (np = pool; np < &pool[NPROC]; np++) {
+		for (np = pool; np < &pool[NPROC]; np++) {	//遍历PCB，找子进程
 			if (np->state != UNUSED && np->parent == p &&
 			    (pid <= 0 || np->pid == pid)) {
 				havekids = 1;
 				if (np->state == ZOMBIE) {
 					// Found one.
-					np->state = UNUSED;
-					pid = np->pid;
-					*code = np->exit_code;
+					np->state = UNUSED;	//修改子进程状态为UNUSED
+					pid = np->pid;			//修改返回值
+					*code = np->exit_code;	//传出参数，将子进程结束时的返回值传出
 					return pid;
 				}
 			}
@@ -238,7 +244,8 @@ int wait(int pid, int *code)
 		if (!havekids) {
 			return -1;
 		}
-		p->state = RUNNABLE;
+		//遍历一遍未找到ZOMBIE状态的子进程，就将当前进程添加到就绪队列，然后等待被调度
+		p->state = RUNNABLE;	
 		add_task(p);
 		sched();
 	}
