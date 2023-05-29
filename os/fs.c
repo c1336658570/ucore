@@ -8,7 +8,15 @@
 // This file contains the low-level file system manipulation
 // routines.  The (higher-level) system call implementations
 // are in sysfile.c.
+//文件系统实现。五层：
+//+ Blocks：原始磁盘块的分配器。
+//+ 日志：用于多步更新的崩溃恢复。
+//+ 文件：inode 分配器、读、写、元数据。
+//+ 目录：具有特殊内容的索引节点（其他索引节点列表！）
+//+ 名称：类似/usr/rtm/xv6/fs.c 的路径，方便命名。
+//这个文件包含了低级别的文件系统操作函数。 （更高级别的）系统调用实现在sysfile.c中。
 
+//新增，文件系统实际逻辑
 #include "fs.h"
 #include "bio.h"
 #include "defs.h"
@@ -127,6 +135,10 @@ struct inode *ialloc(uint dev, short type)
 // Copy a modified in-memory inode to disk.
 // Must be called after every change to an ip->xxx field
 // that lives on disk.
+// 将已修改的内存inode复制到磁盘。
+// 必须在更改ip->xxx字段之后调用，该字段存在于磁盘上。
+//balloc(位于nfs/fs.c)会分配一个新的buf缓存。
+//而iupdate函数则是把修改之后的inode重新写回到磁盘上。不然掉电了就凉了。
 void iupdate(struct inode *ip)
 {
 	struct buf *bp;
@@ -145,21 +157,29 @@ void iupdate(struct inode *ip)
 // Find the inode with number inum on device dev
 // and return the in-memory copy. Does not read
 // it from disk.
+//在设备dev上找到编号为inum的i节点，并返回内存中的副本，不会从磁盘读取它。
+
+// 找到 inum 号 dinode 绑定的 inode，如果不存在新绑定一个
 static struct inode *iget(uint dev, uint inum)
 {
 	struct inode *ip, *empty;
 	// Is the inode already in the table?
+	//inode 已经在表中了吗？
+	// 遍历查找 inode table
 	empty = 0;
 	for (ip = &itable.inode[0]; ip < &itable.inode[NINODE]; ip++) {
+		// 如果有对应的，引用计数 +1并返回
 		if (ip->ref > 0 && ip->dev == dev && ip->inum == inum) {
 			ip->ref++;
 			return ip;
 		}
-		if (empty == 0 && ip->ref == 0) // Remember empty slot.
+		if (empty == 0 && ip->ref == 0) // Remember empty slot.	//记住空槽。
 			empty = ip;
 	}
 
 	// Recycle an inode entry.
+	//回收 inode 条目。
+	// GG，inode表满了，果断自杀.lab7正常不会出现这个情况。
 	if (empty == 0)
 		panic("iget: no inodes");
 
@@ -180,18 +200,26 @@ struct inode *idup(struct inode *ip)
 }
 
 // Reads the inode from disk if necessary.
+//如有必要，从磁盘读取索引节点。
+//当已经得到一个文件对应的 inode 后，可以通过 ivalid 函数确保其是有效的。
 void ivalid(struct inode *ip)
 {
 	struct buf *bp;
 	struct dinode *dip;
 	if (ip->valid == 0) {
+		// bread　可以完成一个块的读取，这个在将 buf 的时候说过了
+		// IBLOCK 可以计算 inum 在几个 block
 		bp = bread(ip->dev, IBLOCK(ip->inum, sb));
+		// 得到 dinode 内容
 		dip = (struct dinode *)bp->data + ip->inum % IPB;
+		// 完成实际读取
 		ip->type = dip->type;
 		ip->size = dip->size;
 		// LAB4: You may need to get lint count here
 		memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
+		// buf 暂时没用了
 		brelse(bp);
+		// 现在有效了
 		ip->valid = 1;
 		if (ip->type == 0)
 			panic("ivalid: no type");
@@ -224,23 +252,32 @@ void iput(struct inode *ip)
 // in blocks on the disk. The first NDIRECT block numbers
 // are listed in ip->addrs[].  The next NINDIRECT blocks are
 // listed in block ip->addrs[NDIRECT].
+// i节点内容
+//
+// 与每个i节点关联的内容（数据）以块的形式存储在磁盘上。
+// 前NDIRECT个块编号在ip->addrs[]中列出。
+// 下一个NINDIRECT块在块ip->addrs[NDIRECT]中列出。
 
 // Return the disk block address of the nth block in inode ip.
 // If there is no such block, bmap allocates one.
+// 返回i节点ip中第n个块的磁盘块地址。如果没有这样的块，则bmap分配一个。
 static uint bmap(struct inode *ip, uint bn)
 {
 	uint addr, *a;
 	struct buf *bp;
-
+	// 如果 bn < 12，属于直接索引, block num = ip->addr[bn]
 	if (bn < NDIRECT) {
 		if ((addr = ip->addrs[bn]) == 0)
+			// 如果对应的 addr, 也就是　block num = 0，表明文件大小增加，需要给文件分配新的 data block
+			// 这是通过 balloc 实现的，具体做法是在 bitmap 中找一个空闲 block，置位后返回其编号
 			ip->addrs[bn] = addr = balloc(ip->dev);
 		return addr;
 	}
 	bn -= NDIRECT;
-
+// 间接索引块，那么对应的数据块就是一个大　addr 数组。
 	if (bn < NINDIRECT) {
 		// Load indirect block, allocating if necessary.
+		//加载间接块，必要时分配。
 		if ((addr = ip->addrs[NDIRECT]) == 0)
 			ip->addrs[NDIRECT] = addr = balloc(ip->dev);
 		bp = bread(ip->dev, addr);
@@ -290,9 +327,13 @@ void itrunc(struct inode *ip)
 // Read data from inode.
 // If user_dst==1, then dst is a user virtual address;
 // otherwise, dst is a kernel address.
+//从 inode 读取数据。
+//如果user_dst==1，则dst为用户虚拟地址；
+//否则，dst 是内核地址。
 int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 {
 	uint tot, m;
+	// 还记得 buf 吗？
 	struct buf *bp;
 
 	if (off > ip->size || off + n < off)
@@ -301,7 +342,9 @@ int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 		n = ip->size - off;
 
 	for (tot = 0; tot < n; tot += m, off += m, dst += m) {
+		// bmap 完成 off 到 block num 的对应，见下
 		bp = bread(ip->dev, bmap(ip, off / BSIZE));
+		// 一次最多读一个块，实际读取长度为 m
 		m = MIN(n - tot, BSIZE - off % BSIZE);
 		if (either_copyout(user_dst, dst,
 				   (char *)bp->data + (off % BSIZE), m) == -1) {
@@ -321,6 +364,13 @@ int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 // Returns the number of bytes successfully written.
 // If the return value is less than the requested n,
 // there was an error of some kind.
+//向 inode 写入数据。
+//调用者必须持有 ip->lock。
+//如果user_src==1，则src为用户虚拟地址；
+//否则，src 是内核地址。
+//返回成功写入的字节数。
+//如果返回值小于请求的n，
+//说明出现了某种错误。
 int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 {
 	uint tot, m;
@@ -343,12 +393,16 @@ int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 		brelse(bp);
 	}
 
+	// 文件长度变长，需要更新 inode 里的 size 字段
 	if (off > ip->size)
 		ip->size = off;
 
 	// write the i-node back to disk even if the size didn't change
 	// because the loop above might have called bmap() and added a new
 	// block to ip->addrs[].
+	// 即使大小没有更改，也将i节点写回磁盘，
+	// 因为上面的循环可能会调用bmap()并向ip->addrs[]添加新块。
+	// 有可能 inode 信息被更新了，写回
 	iupdate(ip);
 
 	return tot;

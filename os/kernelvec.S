@@ -4,13 +4,18 @@
         #
         # push all registers, call kerneltrap(), restore, return.
         #
+        #当处于S模式时，中断和异常会跳转到这里。
+
+        #保存所有寄存器，调用 kerneltrap() 函数，然后恢复寄存器并返回。
 .globl kerneltrap
 .globl kernelvec
 .align 4
 kernelvec:
         // make room to save registers.
+        //腾出空间来保存寄存器。
         addi sp, sp, -256
         // save the registers.
+        //保存寄存器。
         sd ra, 0(sp)
         sd sp, 8(sp)
         sd gp, 16(sp)
@@ -44,10 +49,13 @@ kernelvec:
         sd t6, 240(sp)
 
 	// call the C trap handler in trap.c
+        //调用 trap.c 中的 C 陷阱处理程序。
         call kerneltrap
 
 kernelret:
         // restore registers.
+        //恢复寄存器。
+        // 思考：为什么直接就使用了sp？
         ld ra, 0(sp)
         ld sp, 8(sp)
         ld gp, 16(sp)

@@ -1,3 +1,4 @@
+//新增，文件相关的一些抽象
 #ifndef FCNTL_H
 #define FCNTL_H
 

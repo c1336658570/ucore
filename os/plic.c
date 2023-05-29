@@ -1,12 +1,13 @@
+//新增，用来处理磁盘中断
+
 #include "plic.h"
 #include "log.h"
 #include "proc.h"
 #include "riscv.h"
 #include "types.h"
 
-//
 // the riscv Platform Level Interrupt Controller (PLIC).
-//
+//riscv 平台级中断控制器 (PLIC)。
 
 void plicinit()
 {

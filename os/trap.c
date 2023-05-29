@@ -18,7 +18,8 @@ void set_usertrap()
 }
 
 void set_kerneltrap()
-{
+{	
+	//将内核中断的函数入口设置为kernelvec
 	w_stvec((uint64)kernelvec & ~0x3); // DIRECT
 }
 
@@ -36,28 +37,34 @@ void unknown_trap()
 	exit(-1);
 }
 
+// 外部中断处理函数
 void devintr(uint64 cause)
 {
 	int irq;
 	switch (cause) {
-	case SupervisorTimer:
+	case SupervisorTimer:	//时钟中断
 		set_next_timer();
 		// if form user, allow yield
+		//如果是用户，允许 yield
+		// 时钟中断如果发生在内核态，不切换进程，原因分析在下面
+		// 如果发生在用户态，照常处理
 		if ((r_sstatus() & SSTATUS_SPP) == 0) {
 			yield();
 		}
 		break;
-	case SupervisorExternal:
+	case SupervisorExternal:	//外部中断
 		irq = plic_claim();
-		if (irq == UART0_IRQ) {
+		if (irq == UART0_IRQ) {	//UART串口的终端不需要处理，这个rustsbi替我们处理好了
 			// do nothing
-		} else if (irq == VIRTIO0_IRQ) {
-			virtio_disk_intr();
-		} else if (irq) {
+		} else if (irq == VIRTIO0_IRQ) {			//我们等的就是这个中断
+		//virtio_disk_intr() 会把 buf->disk 置零，这样中断返回后死循环条件解除，程序可以继续运行。
+		//具体代码在 virtio-disk.c 中。
+			virtio_disk_intr();	
+		} else if (irq) {										
 			infof("unexpected interrupt irq=%d\n", irq);
 		}
 		if (irq)
-			plic_complete(irq);
+			plic_complete(irq);								//表明中断已经处理完毕
 		break;
 	default:
 		unknown_trap();
@@ -141,6 +148,7 @@ void usertrapret()
 
 void kerneltrap()
 {
+	// 老三样，不过在这里把处理放到了 C 代码中
 	uint64 sepc = r_sepc();
 	uint64 sstatus = r_sstatus();
 	uint64 scause = r_scause();
@@ -150,15 +158,19 @@ void kerneltrap()
 	if ((sstatus & SSTATUS_SPP) == 0)
 		panic("kerneltrap: not from supervisor mode");
 
-	if (scause & (1ULL << 63)) {
+	if (scause & (1ULL << 63)) {	//是中断就进入这个分支，通过scause最高位判断是中断还是异常
+		// 可能发生时钟中断和外部中断，我们的主要目标是处理外部中断
 		devintr(scause & 0xff);
-	} else {
+	} else {		//异常进入这个分支
+		// kernel 发生异常就挣扎了，肯定出问题了，杀掉用户线程跑路
 		errorf("invalid trap from kernel: %p, stval = %p sepc = %p\n",
 		       scause, r_stval(), sepc);
 		exit(-1);
 	}
 	// the yield() may have caused some traps to occur,
 	// so restore trap registers for use by kernelvec.S's sepc instruction.
+	//yield() 可能导致了一些陷阱的发生，
+	//因此恢复陷阱寄存器以供 kernelvec.S 的 sepc 指令使用。	
 	w_sepc(sepc);
 	w_sstatus(sstatus);
 }

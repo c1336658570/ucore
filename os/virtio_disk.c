@@ -1,11 +1,15 @@
-//
 // driver for qemu's virtio disk device.
 // uses qemu's mmio interface to virtio.
 // qemu presents a "legacy" virtio interface.
-//
 // qemu ... -drive file=fs.img,if=none,format=raw,id=x0 -device
 // virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
-//
+//qemu的virtio磁盘设备驱动程序。
+//使用qemu的mmio接口连接到virtio。
+//qemu 提供了一个“传统”的 virtio 接口。
+//qemu ...-drive file=fs.img,if=none,format=raw,id=x0 -device
+//virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+//新增，用来处理磁盘中断
 
 #include "bio.h"
 #include "defs.h"
@@ -69,6 +73,7 @@ static struct disk {
 	struct virtio_blk_req ops[NUM];
 } __attribute__((aligned(PGSIZE))) disk;
 
+//完成磁盘设备的初始化和对其管理的初始化。
 void virtio_disk_init()
 {
 	uint32 status = 0;
@@ -190,6 +195,10 @@ static int alloc3_desc(int *idx)
 
 extern int PID;
 
+
+//实际完成磁盘IO，当设定好读写信息后会通过 MMIO 的方式通知磁盘开始写。
+//然后，os 会开启中断并开始死等磁盘读写完成。当磁盘完成 IO 后，磁盘会触发一个外部中断，
+//在中断处理中会把死循环条件解除。内核态只会在处理磁盘读写的时候短暂开启中断，之后会马上关闭。
 void virtio_disk_rw(struct buf *b, int write)
 {
 	uint64 sector = b->blockno * (BSIZE / 512);

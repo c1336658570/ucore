@@ -1,3 +1,5 @@
+#弱化的pack.py，仅仅用来插入INIT_PROC符号
+
 import os
 import argparse
 

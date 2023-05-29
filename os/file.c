@@ -1,3 +1,4 @@
+//更加完成的文件操作
 #include "file.h"
 #include "defs.h"
 #include "fcntl.h"

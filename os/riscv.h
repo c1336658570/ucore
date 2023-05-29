@@ -233,12 +233,16 @@ static inline uint64 r_time()
 }
 
 // enable device interrupts
+//启用设备中断
+//开启中断的函数。
 static inline void intr_on()
 {
 	w_sstatus(r_sstatus() | SSTATUS_SIE);
 }
 
 // disable device interrupts
+//禁用设备中断
+//关闭中断的函数。
 static inline void intr_off()
 {
 	w_sstatus(r_sstatus() & ~SSTATUS_SIE);
