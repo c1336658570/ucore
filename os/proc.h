@@ -31,6 +31,8 @@ struct context {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+//注意文件对于进程而言也是其需要记录的一种资源，因此我们在进程对应的PCB结构体之中也需要记录进程打开的文件信息。
+//我们给PCB增加文件指针数组。
 // Per-process state
 struct proc {
 	enum procstate state; // Process state
@@ -43,7 +45,7 @@ struct proc {
 	uint64 max_page;
 	struct proc *parent; // Parent process
 	uint64 exit_code;
-	struct file *files
+	struct file *files		//文件描述符表，用来记录进程打开的文件
 		[FD_BUFFER_SIZE]; //File descriptor table, using to record the files opened by the process
 	uint64 program_brk;
 	uint64 heap_bottom;

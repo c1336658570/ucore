@@ -325,6 +325,8 @@ void exit(int code)
 	sched();
 }
 
+//一个进程能打开的文件是有限的（我们设置为16）。一个进程如果要打开某一个文件，其文件指针数组必须有空位。
+//如果有，就把下标做为文件的fd，并把指定文件指针存入数组之中。
 int fdalloc(struct file *f)
 {
 	debugf("debugf f = %p, type = %d", f, f->type);

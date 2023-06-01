@@ -139,6 +139,7 @@ void virtio_disk_init()
 }
 
 // find a free descriptor, mark it non-free, return its index.
+//找到一个空闲描述符，将其标记为非空闲，返回其索引。
 static int alloc_desc()
 {
 	for (int i = 0; i < NUM; i++) {
@@ -151,6 +152,7 @@ static int alloc_desc()
 }
 
 // mark a descriptor as free.
+//将描述符标记为空闲。
 static void free_desc(int i)
 {
 	if (i >= NUM)
@@ -165,6 +167,7 @@ static void free_desc(int i)
 }
 
 // free a chain of descriptors.
+//释放一个描述符链。
 static void free_chain(int i)
 {
 	while (1) {
@@ -180,6 +183,8 @@ static void free_chain(int i)
 
 // allocate three descriptors (they need not be contiguous).
 // disk transfers always use three descriptors.
+//分配三个描述符（它们不需要连续）。
+//磁盘传输总是使用三个描述符。
 static int alloc3_desc(int *idx)
 {
 	for (int i = 0; i < 3; i++) {
@@ -196,8 +201,8 @@ static int alloc3_desc(int *idx)
 extern int PID;
 
 
-//实际完成磁盘IO，当设定好读写信息后会通过 MMIO 的方式通知磁盘开始写。
-//然后，os 会开启中断并开始死等磁盘读写完成。当磁盘完成 IO 后，磁盘会触发一个外部中断，
+//实际完成磁盘IO，当设定好读写信息后会通过MMIO的方式通知磁盘开始写。
+//然后，os会开启中断并开始死等磁盘读写完成。当磁盘完成 IO 后，磁盘会触发一个外部中断，
 //在中断处理中会把死循环条件解除。内核态只会在处理磁盘读写的时候短暂开启中断，之后会马上关闭。
 void virtio_disk_rw(struct buf *b, int write)
 {
@@ -265,11 +270,14 @@ void virtio_disk_rw(struct buf *b, int write)
 	// Wait for virtio_disk_intr() to say request has finished.
 	// Make sure complier will load 'b' form memory
 	struct buf volatile *_b = b;
+	//开内核中断
 	intr_on();
-	while (_b->disk == 1) {
+	//在这里循环死等，直到处发内核中断，然后在内核中断中修改_b->disk，代表磁盘IO完成，然后退出循环，继续向下执行
+	while (_b->disk == 1) {		
 		// WARN: No kernel concurrent support, DO NOT allow kernel yield
 		// yield();
 	}
+	//关内核中断
 	intr_off();
 	disk.info[idx[0]].b = 0;
 	free_chain(idx[0]);
@@ -298,7 +306,7 @@ void virtio_disk_intr()
 			panic("virtio_disk_intr status");
 
 		struct buf *b = disk.info[id].b;
-		b->disk = 0; // disk is done with buf
+		b->disk = 0; // disk is done with buf	将b->disk置0
 		disk.used_idx += 1;
 	}
 }

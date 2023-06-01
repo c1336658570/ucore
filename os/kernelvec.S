@@ -91,4 +91,7 @@ kernelret:
         addi sp, sp, 256
 
         // return to whatever we were doing in the kernel.
+        //返回我们在内核中所做的任何事情。
         sret
+        #特权级别由 S（Supervisor）切换到用户态，实现从异常处理程序中返回到用户程序。
+        #当 sret 指令被执行时，当前的 SP（栈指针）和 PC（程序计数器）会被自动保存到 SP 和 SCAUSE 寄存器中，然后 SIE（Supervisor Interrupt Enable）寄存器会被设置为 SPP（Supervisor Previous Privilege）标记的值，错位寄存器 SRW 中的 RW 位也会被设置为 SPV（S 态版本）。接着，sret 指令会使系统跳转到保存在 SRET 寄存器中的地址，同时设置新的特权级别和相关状态信息，并开始执行在用户态下的程序。因此，sret 指令的功能类似于 RISC-V 架构中的 eret 指令，但它只涉及到 S 态的切换。

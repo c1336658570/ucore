@@ -27,6 +27,14 @@
 
 //新增，IO buffer 的实现
 
+/*
+为了加快磁盘访问的速度，在内核中设置了磁盘缓存struct buf，一个buf对应一个磁盘block，
+这一部分代码也不要求同学们深入掌握。大致的作用机制是，对磁盘的读写都会被转化为对buf的读写，
+当buf有效时，读写buf，buf无效时（类似页表缺页和TLB缺失），就实际读写磁盘，将buf变得有效，然后继续读写buf。
+buf写回的时机是buf池满需要替换的时候(类似内存的swap策略) 手动写回。
+如果buf没有写回，一但掉电就GG了，所以手动写回还是挺重要的。
+*/
+
 #include "bio.h"
 #include "defs.h"
 #include "fs.h"
@@ -39,15 +47,23 @@ struct {
 	struct buf head;
 } bcache;
 
+//用于初始化缓冲区。这个函数做的事情是，将缓冲区数组构建成循环双向链表的形式，
+//链表的头节点位于 bcache.head 处，每个节点都是 struct buf 类型的一个缓存块。
 void binit()
 {
 	struct buf *b;
 	// Create linked list of buffers
+	//创建缓冲区链表、
+	//将缓冲区数组构建成循环双向链表的形式
+	//头节点的前驱和后继均指向自身，表示链表为空
 	bcache.head.prev = &bcache.head;
 	bcache.head.next = &bcache.head;
 	for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
+		//连接前驱和后继节点
+		//双向链表中b是当前节点，它的下一个节点为“头节点的下一个节点”，上一个节点为“头节点”
 		b->next = bcache.head.next;
 		b->prev = &bcache.head;
+		//将头节点的后继节点和 b 相连
 		bcache.head.next->prev = b;
 		bcache.head.next = b;
 	}
@@ -55,6 +71,8 @@ void binit()
 
 // Look through buffer cache for block on device dev.
 // If not found, allocate a buffer.
+//通过缓冲区高速缓存查找设备 dev 上的块。
+//如果没有找到，分配一个缓冲区。
 static struct buf *bget(uint dev, uint blockno)
 {
 	struct buf *b;
@@ -67,6 +85,8 @@ static struct buf *bget(uint dev, uint blockno)
 	}
 	// Not cached.
 	// Recycle the least recently used (LRU) unused buffer.
+	//没有缓存。
+	//回收最近最少使用 (LRU) 未使用的缓冲区。
 	for (b = bcache.head.prev; b != &bcache.head; b = b->prev) {
 		if (b->refcnt == 0) {
 			b->dev = dev;
@@ -114,8 +134,8 @@ void bwrite(struct buf *b)
 //brelse 不会真的如字面意思释放一个 buf。它的准确含义是暂时不操作该 buf 了并把它放置在bcache链表的首部，
 //buf的真正释放会被推迟到buf池满，无法分配的时候，就会把最近最久未使用的buf释放掉（释放 = 写回 + 清空）。
 
-//brelse 的数量必须和 bget 相同，因为 bget 会使得引用计数加一。
-//如果没有相匹配的 brelse，就好比 new 了之后没有 delete。
+//brelse的数量必须和bget相同，因为bget会使得引用计数加一。
+//如果没有相匹配的brelse，就好比new了之后没有delete。
 void brelse(struct buf *b)
 {
 	b->refcnt--;
