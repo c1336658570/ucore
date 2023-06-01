@@ -47,15 +47,17 @@ struct superblock {
 	uint bmapstart; // Block number of first free map block	第一个空闲块位图块的块号，表示空闲块位图的起始位置。
 };
 
-#define FSMAGIC 0x10203040
+#define FSMAGIC 0x10203040		//文件系统魔数，用于标识文件系统类型。
 
-#define NDIRECT 12
-#define NINDIRECT (BSIZE / sizeof(uint))
-#define MAXFILE (NDIRECT + NINDIRECT)
+#define NDIRECT 12						//直接地址数，指定i节点中能够存储指向数据块地址的直接指针数量。
+////一次间接块地址数，指定 i 节点中能够存储指向数据块地址的一次间接指针数量；
+//每个一次间接块中可存储 (BSIZE/sizeof(uint)) 个直接块地址，uint 为无符号整型。
+#define NINDIRECT (BSIZE / sizeof(uint))	
+#define MAXFILE (NDIRECT + NINDIRECT)	//指定 i 节点中直接块和一次间接块中能够存储的数据块地址数之和。
 
 // File type
-#define T_DIR 1 // Directory
-#define T_FILE 2 // File
+#define T_DIR 1 // Directory		目录文件类型。
+#define T_FILE 2 // File				普通文件类型。
 
 // On-disk inode structure
 //磁盘 inode 结构
@@ -74,19 +76,19 @@ struct dinode {
 };
 
 // Inodes per block.
-#define IPB (BSIZE / sizeof(struct dinode))
+#define IPB (BSIZE / sizeof(struct dinode))		//每块中dinode数。
 
 // Block containing inode i
-#define IBLOCK(i, sb) ((i) / IPB + sb.inodestart)
+#define IBLOCK(i, sb) ((i) / IPB + sb.inodestart)	//返回i节点所在块号，sb为超级块。
 
 // Bitmap bits per block
-#define BPB (BSIZE * 8)
+#define BPB (BSIZE * 8)		//每块中位图位数。
 
 // Block of free map containing bit for block b
-#define BBLOCK(b, sb) ((b) / BPB + sb.bmapstart)
+#define BBLOCK(b, sb) ((b) / BPB + sb.bmapstart)	//返回数据块b所在磁盘块的位图号，sb为超级块。
 
 // Directory is a file containing a sequence of dirent structures.
-#define DIRSIZ 14
+#define DIRSIZ 14		//目录结构体dirent中的最大文件名长度。
 
 //目录对应的数据块的内容本质是 filename 到 file inode_num 的一个 map，这里为了简单，就存为一个 `dirent` 数组，查找的时候遍历对比
 struct dirent {

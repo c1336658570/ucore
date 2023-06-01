@@ -26,9 +26,11 @@
 #include "types.h"
 // there should be one superblock per disk device, but we run with
 // only one device
+//每个磁盘设备应该有一个超级块，但我们只使用一个设备。
 struct superblock sb;
 
 // Read the super block.
+//读取超级块。
 static void readsb(int dev, struct superblock *sb)
 {
 	struct buf *bp;
