@@ -16,7 +16,7 @@
 	} while (0)
 #endif
 
-#define NINODES 200
+#define NINODES 200	//文件系统inode数量，存储在磁盘上的inode blocks中
 
 // Disk layout:
 // [ boot block | sb block | inode blocks | free bit map | data blocks ]
@@ -42,24 +42,25 @@ uint ialloc(ushort type);
 void iappend(uint inum, void *p, int n);
 
 // convert to intel byte order
+//转换为英特尔字节顺序，转为小端，高存高，低存低
 ushort xshort(ushort x)
 {
-	ushort y;
-	uchar *a = (uchar *)&y;
-	a[0] = x;
-	a[1] = x >> 8;
-	return y;
+	ushort y;		
+	uchar *a = (uchar *)&y; // 定义一个指向y的unsigned char类型指针a，强制将y的地址转换为unsigned char类型指针
+	a[0] = x; // 将x的低8位赋值给a[0]
+	a[1] = x >> 8; // 将x的高8位赋值给a[1]
+	return y; // 返回y
 }
 
 uint xint(uint x)
 {
 	uint y;
-	uchar *a = (uchar *)&y;
-	a[0] = x;
-	a[1] = x >> 8;
-	a[2] = x >> 16;
-	a[3] = x >> 24;
-	return y;
+	uchar *a = (uchar *)&y; // 定义一个指向y的unsigned char类型指针a，强制将y的地址转换为unsigned char类型指针
+	a[0] = x; // 将x的低8位赋值给 a[0]
+	a[1] = x >> 8; // 将x的第2个8位赋值给a[1]
+	a[2] = x >> 16; // 将x的第3个8位赋值给a[2]
+	a[3] = x >> 24; // 将x的最高8位赋值给a[3]
+	return y; // 返回y
 }
 
 int main(int argc, char *argv[])

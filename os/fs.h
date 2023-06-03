@@ -17,16 +17,16 @@
 //磁盘文件系统格式。
 //内核程序和用户程序都使用这个头文件。
 
-#define NFILE 100 // open files per system	每个系统打开文件的最大数量。
+#define NFILE 100 // open files per system	每个系统最多可以打开的文件数。
 #define NINODE 50 // maximum number of active i-nodes	活动 i 节点的最大数量。
 #define NDEV 10 // maximum major device number	主设备号的最大数量。
 #define ROOTDEV 1 // device number of file system root disk	文件系统根目录磁盘的设备号。
 #define MAXOPBLOCKS 10 // max # of blocks any FS op writes	任何文件系统操作写入的最大块数。
-#define NBUF (MAXOPBLOCKS * 3) // size of disk block cache	磁盘块缓存的大小。
-#define FSSIZE 1000 // size of file system in blocks	//文件系统的块大小
+#define NBUF (MAXOPBLOCKS * 3) // size of disk block cache	磁盘块缓存的大小，以块数计。
+#define FSSIZE 1000 // size of file system in blocks	//文件系统的大小（块数）
 #define MAXPATH 128 // maximum file path name	//最大文件路径名
 
-#define ROOTINO 1 // root i-number	根目录 i 节点号。
+#define ROOTINO 1 // root i-number	文件系统根目录的i节点号。
 #define BSIZE 1024 // block size		磁盘块大小。
 
 // Disk layout:
@@ -76,18 +76,25 @@ struct dinode {
 };
 
 // Inodes per block.
+//每个磁盘块中dinode数的最大值
 #define IPB (BSIZE / sizeof(struct dinode))		//每块中dinode数。
 
 // Block containing inode i
+//存储 inode i 内容的磁盘块
+//通过i/IPB计算出当前inode节点位于第几个inode磁盘块，再加上初始inode磁盘块的块号获得但前i节点的磁盘号
 #define IBLOCK(i, sb) ((i) / IPB + sb.inodestart)	//返回i节点所在块号，sb为超级块。
 
 // Bitmap bits per block
+//位图(bitmap)每个磁盘块包含的比特数。
 #define BPB (BSIZE * 8)		//每块中位图位数。
 
 // Block of free map containing bit for block b
+//包含磁盘块 b 分配信息所在的空闲块位图的磁盘块。
+//通过磁盘块块号b除每个磁盘块可以包含的位图数，获取当前磁盘块的位图，在第几个位图块，再加上位图块起始块号，获取当前磁盘块的位图块
 #define BBLOCK(b, sb) ((b) / BPB + sb.bmapstart)	//返回数据块b所在磁盘块的位图号，sb为超级块。
 
 // Directory is a file containing a sequence of dirent structures.
+//目录是一个包含一系列 dirent 结构的文件。
 #define DIRSIZ 14		//目录结构体dirent中的最大文件名长度。
 
 //目录对应的数据块的内容本质是 filename 到 file inode_num 的一个 map，这里为了简单，就存为一个 `dirent` 数组，查找的时候遍历对比
