@@ -61,17 +61,19 @@ void devintr(uint64 cause)
 		}
 		break;
 	case SupervisorExternal:	//外部中断
-		irq = plic_claim();
-		if (irq == UART0_IRQ) {	//UART串口的终端不需要处理，这个rustsbi替我们处理好了
+		irq = plic_claim();		//对于外部中断（Supervisor External），先使用 plic_claim() 获取中断请求号
+		if (irq == UART0_IRQ) {	//UART串口的中断不需要处理，这个rustsbi替我们处理好了
 			// do nothing
-		} else if (irq == VIRTIO0_IRQ) {			//我们等的就是这个中断
+		} else if (irq == VIRTIO0_IRQ) {//如果是 VIRTIO0 的中断请求，就调用 virtio_disk_intr()
+																		//函数来处理这个请求，并将处理结果通知到 virtio-disk.c 中。
+																		//这个过程会将 buf->disk 置零，解除死循环的状态，程序可以继续进行。
 		//virtio_disk_intr() 会把 buf->disk 置零，这样中断返回后死循环条件解除，程序可以继续运行。
 		//具体代码在 virtio-disk.c 中。
 			virtio_disk_intr();	
-		} else if (irq) {										
+		} else if (irq) {		//如果是其他未知中断，则打印错误信息。
 			infof("unexpected interrupt irq=%d\n", irq);
 		}
-		if (irq)
+		if (irq)	//在处理中断请求完成后，使用 plic_complete() 来告诉中断控制器已经成功处理了该请求。
 			plic_complete(irq);								//表明中断已经处理完毕
 		break;
 	default:
@@ -79,6 +81,17 @@ void devintr(uint64 cause)
 		break;
 	}
 }
+/*
+注解：
+cause：参数，表示中断的类型。
+SupervisorTimer 和 SupervisorExternal：常量，表示定时器和外部中断的类型。
+yield()：调用该函数，如果进程发生了切换，则允许从当前进程切换到另一进程。
+plic_claim()：调用该函数获取一个未处理的中断服务请求，并返回对应的中断号。
+UART0_IRQ 和 VIRTIO0_IRQ：常量，表示 UART0 和 VIRTIO0 的中断号。
+virtio_disk_intr()：调用该函数来处理 VIRTIO 块设备的中断请求，并在 virtio-disk.c 中通知处理结果。
+plic_complete()：调用该函数，告诉中断控制器已经成功处理了指定的中断服务请求。
+*/
+
 
 //
 // handle an interrupt, exception, or system call from user space.

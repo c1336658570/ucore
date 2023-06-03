@@ -77,9 +77,10 @@ static struct buf *bget(uint dev, uint blockno)
 {
 	struct buf *b;
 	// Is the block already cached?
+	// 检查该块是否已经被缓存
 	for (b = bcache.head.next; b != &bcache.head; b = b->next) {
 		if (b->dev == dev && b->blockno == blockno) {
-			b->refcnt++;
+			b->refcnt++;	// 增加引用计数以表示该缓冲区正在被使用。
 			return b;
 		}
 	}
@@ -87,21 +88,25 @@ static struct buf *bget(uint dev, uint blockno)
 	// Recycle the least recently used (LRU) unused buffer.
 	//没有缓存。
 	//回收最近最少使用 (LRU) 未使用的缓冲区。
-	for (b = bcache.head.prev; b != &bcache.head; b = b->prev) {
+	
+	// 寻找最近最少使用 (LRU) 的未使用缓冲区
+	for (b = bcache.head.prev; b != &bcache.head; b = b->prev) {	//从后往前遍历寻找空的buf
 		if (b->refcnt == 0) {
+			// 重用该缓冲区来缓存新块号
 			b->dev = dev;
 			b->blockno = blockno;
-			b->valid = 0;
-			b->refcnt = 1;
+			b->valid = 0;		// 由于尚未从磁盘中读取数据，因此将其标记为无效。
+			b->refcnt = 1;	// 更新引用计数，以表示该缓冲区正在被使用。
 			return b;
 		}
 	}
+	// 如果没有找到未使用的缓冲区，则触发 panic 操作。
 	panic("bget: no buffers");
 	return 0;
 }
 
-const int R = 0;
-const int W = 1;
+const int R = 0;	//读操作
+const int W = 1;	//写操作
 
 // Return a buf with the contents of the indicated block.
 //返回一个包含指定块内容的 buf。
@@ -131,6 +136,7 @@ void bwrite(struct buf *b)
 //释放缓冲区。
 //移动到最近使用列表的头部。
 //释放块缓存的brelse函数。
+
 //brelse 不会真的如字面意思释放一个 buf。它的准确含义是暂时不操作该 buf 了并把它放置在bcache链表的首部，
 //buf的真正释放会被推迟到buf池满，无法分配的时候，就会把最近最久未使用的buf释放掉（释放 = 写回 + 清空）。
 
@@ -138,11 +144,15 @@ void bwrite(struct buf *b)
 //如果没有相匹配的brelse，就好比new了之后没有delete。
 void brelse(struct buf *b)
 {
+	// 对缓冲区的引用计数进行减一。
 	b->refcnt--;
-	if (b->refcnt == 0) {
+	if (b->refcnt == 0) {	// 如果没有其他地方继续引用该缓冲区。
 		// no one is waiting for it.
+		
+		// 从 LRU 缓存中移除该缓冲区。
 		b->next->prev = b->prev;
 		b->prev->next = b->next;
+		// 将其插入缓存列表的前方。
 		b->next = bcache.head.next;
 		b->prev = &bcache.head;
 		bcache.head.next->prev = b;
@@ -150,12 +160,21 @@ void brelse(struct buf *b)
 	}
 }
 
+/*
+引用计数用于控制缓冲区的使用情况。当引用计数为 0 时，表示该缓冲区没有被任何代码使用，可以被回收和重新利用，
+用于缓存其他块的数据。当引用计数为正数时，表示该缓冲区正在被占用，不能被回收。
+bpin() 和 bunpin() 函数根据缓冲区的使用情况增加或减少引用计数。
+*/
+//bpin() 函数用于增加缓冲区的引用计数，在使用缓冲区时调用。
 void bpin(struct buf *b)
 {
+	// 增加缓冲区的引用计数。
 	b->refcnt++;
 }
 
+//bunpin() 函数则将缓冲区的引用计数减少一，当不再需要该缓冲区时调用。
 void bunpin(struct buf *b)
 {
+	// 减少缓冲区的引用计数。
 	b->refcnt--;
 }

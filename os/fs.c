@@ -222,7 +222,7 @@ static struct inode *iget(uint dev, uint inum)
 	empty = 0;
 	for (ip = &itable.inode[0]; ip < &itable.inode[NINODE]; ip++) {	 // 遍历查找 inode table
 		// 如果有对应的，引用计数 +1并返回inode内存副本
-		if (ip->ref > 0 && ip->dev == dev && ip->inum == inum) {
+		if (ip->ref > 0 && ip->dev == dev && ip->inum == inum) {	//找到了inode
 			ip->ref++;
 			return ip;
 		}
@@ -330,6 +330,8 @@ void iput(struct inode *ip)
 // Return the disk block address of the nth block in inode ip.
 // If there is no such block, bmap allocates one.
 // 返回i节点ip中第n个块的磁盘块地址。如果没有这样的块，则bmap分配一个。
+// bmap函数用于将文件中的逻辑块映射到设备中的物理块地址，并返回相应的块地址。
+// 参数ip是对应的inode，参数bn是文件中的逻辑块号
 static uint bmap(struct inode *ip, uint bn)
 {
 	uint addr, *a;
@@ -340,14 +342,14 @@ static uint bmap(struct inode *ip, uint bn)
 			// 如果对应的 addr, 也就是　block num = 0，表明文件大小增加，需要给文件分配新的 data block
 			// 这是通过 balloc 实现的，具体做法是在 bitmap 中找一个空闲 block，置位后返回其编号
 			ip->addrs[bn] = addr = balloc(ip->dev);	//balloc(位于nfs/fs.c)会分配一个新的buf缓存。而iupdate函数则是把修改之后的inode重新写回到磁盘上。不然掉电了就凉了。
-		return addr;
+		return addr;	// 返回块地址
 	}
 	// 接下来处理间接索引块
 	bn -= NDIRECT;	// 转换为相对于间接索引块的索引
 // 间接索引块，那么对应的数据块就是一个大　addr 数组。
 	if (bn < NINDIRECT) {	// 如果n在间接索引块可以覆盖的范围内
 		// Load indirect block, allocating if necessary.
-		//加载间接块，必要时分配。
+		//加载间接块，如果不存在则分配新块
 		if ((addr = ip->addrs[NDIRECT]) == 0)	// 如果间接索引块未分配，则分配一个
 			ip->addrs[NDIRECT] = addr = balloc(ip->dev);	// 通过balloc函数在设备上分配一个空闲块
 		bp = bread(ip->dev, addr);	// 读取间接索引块到缓存中
@@ -401,6 +403,16 @@ void itrunc(struct inode *ip)
 //从inode读取数据。
 //如果user_dst==1，则dst为用户虚拟地址；
 //否则，dst是内核地址。
+//这是bread的上级接口
+/*
+readi() 函数用于从 inode 所代表的文件中读取数据并将其存储到用户空间的缓存中。
+该函数先检查读取操作是否合法。若不合法则直接返回。如果读取操作合法，则依次读取文件中每个数据块，
+并将每个块中可用的数据复制到用户空间的缓存中。在每个块上进行操作之前，函数会使用 bmap() 函数将文件偏移量转换为块编号。
+函数使用一个循环来读取每一个块。循环中的变量 tot 表示已经读取的字节数。
+在每次循环中，函数首先使用 bread() 函数读取指定块的缓存。接着，
+函数通过取一个最小值来计算当前块中最多可以读取的字节数。接下来，函数使用 either_copyout()
+将块中可用的字节复制到目标缓存中。函数会在复制完成之后调用 brelse() 函数释放缓存。
+*/
 int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 {
 	uint tot, m;
@@ -409,18 +421,20 @@ int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 
 	if (off > ip->size || off + n < off)	//off大于文件总字节或n < 0都直接返回
 		return 0;
-	if (off + n > ip->size)	//off+n比总字节大，直接返回
+	if (off + n > ip->size)	//off+n比总字节大，将要读的字节数设置为总字节-off
 		n = ip->size - off;
 
+	// 读取每个块，以填满缓冲区。	tot保存已经读取的字节数
 	for (tot = 0; tot < n; tot += m, off += m, dst += m) {
 		// bmap 完成 off 到 block num 的对应，见下
-		bp = bread(ip->dev, bmap(ip, off / BSIZE));
+		bp = bread(ip->dev, bmap(ip, off / BSIZE));	// 将文件偏移量转换为块编号（通过 bmap 函数实现）。
 		// 一次最多读一个块，实际读取长度为 m
-		m = MIN(n - tot, BSIZE - off % BSIZE);
+		m = MIN(n - tot, BSIZE - off % BSIZE);// 计算本块中最多可以读取的字节数（实现方式：最小值函数）。
+		// 将块中的数据复制到输出缓冲区中。
 		if (either_copyout(user_dst, dst,
 				   (char *)bp->data + (off % BSIZE), m) == -1) {
 			brelse(bp);
-			tot = -1;
+			tot = -1;	// Error occurred, set return value to -1.
 			break;
 		}
 		brelse(bp);
@@ -442,21 +456,32 @@ int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 //返回成功写入的字节数。
 //如果返回值小于请求的n，
 //说明出现了某种错误。
+//writei是bwrite的上级接口
+/*
+writei() 函数用于将用户空间中的缓存写入到 inode 所代表的文件中。
+
+函数的实现方式与 readi() 函数类似，也是一个循环来写入每个数据块。 在每个块上进行写入操作之前，
+函数会使用 bmap() 函数将文件偏移量转换为块编号。在循环结束后，函数会更新 inode 中的大小信息，
+以便记录文件的当前大小，并将已更新的 inode 信息写回磁盘。
+如果文件的大小发生了变化，函数会更新 inode 中的 size 字段。否则，函数无法判断文件大小是否发生了变化，
+因此会将已更新的 inode 写回到磁盘上。虽然这样的更新操作可能是无效的，但它仍然比不写回 inode 更安全，
+因为循环可能调用 bmap() 并向 ip->addrs[] 添加新块。
+*/
 int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 {
 	uint tot, m;
 	struct buf *bp;
-
+	// 检查写入操作是否有效。
 	if (off > ip->size || off + n < off)	//off大于文件总字节或n < 0都直接返回
 		return -1;
-	if (off + n > MAXFILE * BSIZE)
+	if (off + n > MAXFILE * BSIZE)	//n比最大文件字节数大，直接返回
 		return -1;
-
+	// 写入每个块，以填满缓冲区。
 	for (tot = 0; tot < n; tot += m, off += m, src += m) {
-		bp = bread(ip->dev, bmap(ip, off / BSIZE));
-		m = MIN(n - tot, BSIZE - off % BSIZE);
+		bp = bread(ip->dev, bmap(ip, off / BSIZE));	// 将文件偏移量转换为块编号（通过 bmap 函数实现）。
+		m = MIN(n - tot, BSIZE - off % BSIZE);	// 计算本块中最多可以写入的字节数（实现方式：最小值函数）。
 		if (either_copyin(user_src, src,
-				  (char *)bp->data + (off % BSIZE), m) == -1) {
+				  (char *)bp->data + (off % BSIZE), m) == -1) {	// 将输入缓冲区中的数据复制到块中。
 			brelse(bp);
 			break;
 		}
@@ -465,7 +490,7 @@ int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 	}
 
 	// 文件长度变长，需要更新 inode 里的 size 字段
-	if (off > ip->size)
+	if (off > ip->size)	// 如果文件大小发生了变化，则更新 inode 中的 size 字段。
 		ip->size = off;
 
 	// write the i-node back to disk even if the size didn't change

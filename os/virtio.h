@@ -60,7 +60,7 @@
 // a single descriptor, from the spec.
 //表示 virtio 设备中的一个描述符
 struct virtq_desc {
-	uint64 addr;		//表示数字地址
+	uint64 addr;		//表示地址
 	uint32 len;			// 表示大小
 	uint16 flags;
 	uint16 next;		//表示下一个描述符的索引号
